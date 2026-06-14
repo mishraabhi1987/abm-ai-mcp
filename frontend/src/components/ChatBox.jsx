@@ -23,6 +23,7 @@ const styles = {
     fontFamily: "inherit",
     boxSizing: "border-box",
     outline: "none",
+    boxShadow: "0 0 30px rgba(199,5,5,0.25)", // ← red glow
   },
   askBtn: {
     alignSelf: "flex-end",
@@ -34,6 +35,8 @@ const styles = {
     cursor: "pointer",
     fontSize: "15px",
     fontWeight: "700",
+    marginTop: "10px",
+    transition: "background 0.2s, box-shadow 0.2s",
   },
   askBtnDisabled: {
     background: "#5a3a2a",
@@ -62,7 +65,13 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
   return (
     <div style={styles.container}>
       {/* New Chat — top right */}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: "8px",
+        }}
+      >
         <button
           style={{
             fontFamily: theme.sora,
@@ -76,19 +85,20 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
             cursor: "pointer",
           }}
           onClick={onNewChat}
+          className="new-chat-btn"
         >
           + New Chat
         </button>
       </div>
 
       <textarea
+        className="nexus-textarea"
         style={styles.textarea}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Ask anything — stock price, weather, news, code..."
       />
-
       <button
         style={{
           ...styles.askBtn,

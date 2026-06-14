@@ -77,6 +77,21 @@ const mdStyles = `
     border-top: 1px solid #3a3a42;
     margin: 14px 0;
   }
+  .md-content pre {
+    background: ${theme.bg};
+    border: 1px solid ${theme.lineSoft};
+    border-radius: 10px;
+    padding: 14px;
+    overflow-x: auto;
+    margin: 10px 0;
+  }
+.md-content pre code {
+    background: none;
+    padding: 0;
+    color: #c8c8d0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
 `;
 
 export default function Bubble({ role, content }) {
