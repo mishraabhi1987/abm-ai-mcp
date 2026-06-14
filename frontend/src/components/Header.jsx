@@ -21,7 +21,7 @@ const styles = {
   a: { color: theme.primary },
   b: { color: theme.accent },
   m: { color: theme.text },
-  aiNexus: { color: theme.accent },
+  aiNexus: { color: theme.textDim },
   tagline: {
     fontFamily: theme.mono,
     fontSize: "13px",

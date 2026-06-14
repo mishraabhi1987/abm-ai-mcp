@@ -8,13 +8,21 @@ const styles = {
     gap: "12px",
     maxWidth: "700px",
     margin: "0 auto",
+    marginTop: "30px",
     width: "100%",
+    padding: "20px", // ← glass panel ko andar space
+    background: "rgba(20, 20, 24, 0.45)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "20px",
+    boxSizing: "border-box", // ← padding add kiya toh zaroori
   },
   textarea: {
+    background: "rgba(255, 255, 255, 0.04)",
     width: "100%",
     minHeight: "90px",
     padding: "16px",
-    background: "#1e1e1e",
     color: "#e8e8e8",
     border: "1px solid #2e2e2e",
     borderRadius: "14px",
@@ -23,7 +31,7 @@ const styles = {
     fontFamily: "inherit",
     boxSizing: "border-box",
     outline: "none",
-    boxShadow: "0 0 30px rgba(199,5,5,0.25)", // ← red glow
+    boxShadow: "0 0 30px rgba(199,5,5,0.25)",
   },
   askBtn: {
     alignSelf: "flex-end",
@@ -41,6 +49,14 @@ const styles = {
   askBtnDisabled: {
     background: "#5a3a2a",
     cursor: "not-allowed",
+  },
+  chatBox: {
+    background: "rgba(20, 20, 24, 0.45)", // solid se transparent
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)", // Safari ke liye (tum Mac pe ho)
+    border: "1px solid rgba(255, 255, 255, 0.08)",
+    borderRadius: "20px",
+    // ...baaki same
   },
 };
 
@@ -65,13 +81,23 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
   return (
     <div style={styles.container}>
       {/* New Chat — top right */}
+      <textarea
+        className="nexus-textarea"
+        style={styles.textarea}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Ask anything — stock price, weather, news, code..."
+      />
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: "8px",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginTop: "8px",
         }}
       >
+        {/* New Chat — left */}
         <button
           style={{
             fontFamily: theme.sora,
@@ -89,26 +115,21 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
         >
           + New Chat
         </button>
-      </div>
 
-      <textarea
-        className="nexus-textarea"
-        style={styles.textarea}
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="Ask anything — stock price, weather, news, code..."
-      />
-      <button
-        style={{
-          ...styles.askBtn,
-          ...(loading ? styles.askBtnDisabled : {}),
-        }}
-        onClick={handleSend}
-        disabled={loading}
-      >
-        {loading ? "Thinking..." : "Ask →"}
-      </button>
+        {/* Ask — right */}
+        <button
+          style={{
+            ...styles.askBtn,
+            alignSelf: "auto", // override
+            marginTop: 0, // override
+            ...(loading ? styles.askBtnDisabled : {}),
+          }}
+          onClick={handleSend}
+          disabled={loading}
+        >
+          {loading ? "Thinking..." : "Ask →"}
+        </button>
+      </div>
     </div>
   );
 }
