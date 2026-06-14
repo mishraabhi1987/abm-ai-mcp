@@ -140,20 +140,6 @@ export default function NexusCenter() {
           </svg>
         </div>
       </div>
-
-      {/* Title — ABM (red/gold/white) + AI NEXUS (gold) */}
-      <div style={styles.title}>
-        <span style={styles.tA}>A</span>
-        <span style={styles.tB}>B</span>
-        <span style={styles.tM}>M</span>
-        <span style={styles.tAiNexus}>&nbsp;AI</span>
-      </div>
-
-      {/* Slogan — purana */}
-      <div style={styles.tagline}>
-        · Accelerating with{" "}
-        <b style={styles.taglineBold}>Artificial Intelligence</b> ·
-      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { sendMessage, newChat } from "./api/chat";
 import { theme } from "./theme";
 import NeuralBg from "./components/NeuralBg";
 import NexusCenter from "./components/NexusCenter";
+import Header from "./components/Header";
 
 const styles = {
   app: {
@@ -68,6 +69,7 @@ export default function App() {
   return (
     <div style={styles.app}>
       <NeuralBg />
+      <Header />
       <NexusCenter /> {/* Navbar ki jagah */}
       <div style={styles.chatArea}>
         <ChatBox
