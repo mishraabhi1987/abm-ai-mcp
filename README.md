@@ -26,7 +26,9 @@ uv --version
 mcp version
 ```
 
----
+# To Run the servre:
+
+uvicorn main:app --reload
 
 ## Run & test
 

@@ -228,3 +228,54 @@ async def new_chat(req: ChatRequest):
     if req.session_id and req.session_id in conversations:
         del conversations[req.session_id]
     return {"ok": True}
+
+# ============================================================
+#  ADD THIS to main.py  (Lyrics endpoint for Artifacts -> Lyrics mode)
+#  Uses the LOCAL MCP server's prompt + resource that you added to server.py:
+#    resource: lyrics://standards
+#    prompt:   lyrics_brief
+#  NOTE: read_resource / get_prompt return-shapes vary slightly by SDK version.
+#  On first run, print(res) and print(pr) once and adjust .contents / .messages
+#  if the fields differ — do not assume in the dark.
+# ============================================================
+
+
+class LyricsRequest(BaseModel):
+    mood: str
+    theme: str = ""
+    anchor: str = ""
+
+
+async def run_lyrics(mood: str, theme: str = "", anchor: str = "") -> str:
+    # Only the LOCAL stdio server is needed (it holds the lyrics primitives).
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            # 1. RESOURCE  (App-controlled standards)
+            res = await session.read_resource("lyrics://standards")
+            standards = res.contents[0].text
+
+            # 2. PROMPT  (User-controlled brief)
+            args = {"mood": mood}
+            if theme:
+                args["theme"] = theme
+            if anchor:
+                args["anchor"] = anchor
+            pr = await session.get_prompt("lyrics_brief", arguments=args)
+            brief = pr.messages[0].content.text
+
+            # 3. Standards as system, brief as the user turn -> Claude writes the lyrics.
+            response = anthropic.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=1500,
+                system=standards,
+                messages=[{"role": "user", "content": brief}],
+            )
+            return "".join(b.text for b in response.content if b.type == "text")
+
+
+@app.post("/api/lyrics")
+async def lyrics(req: LyricsRequest):
+    text = await run_lyrics(req.mood, req.theme, req.anchor)
+    return {"lyrics": text}

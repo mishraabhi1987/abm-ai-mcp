@@ -41,3 +41,17 @@ export async function newChat() {
   }
   sessionId = null; // reset
 }
+
+// If your existing file already defines a BASE/API_URL constant, reuse it
+// and delete this line. Otherwise set it to your FastAPI origin.
+const LYRICS_API_BASE = "http://localhost:8000"; // <-- match your /chat base
+
+export async function generateLyrics(prompt) {
+  const res = await fetch(`${LYRICS_API_BASE}/api/lyrics`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mood: prompt }), // whole input passed as mood/genre
+  });
+  if (!res.ok) throw new Error(`Lyrics request failed (${res.status})`);
+  return res.json(); // { lyrics: "..." }
+}

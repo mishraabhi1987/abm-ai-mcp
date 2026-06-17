@@ -17,6 +17,12 @@ const styles = {
     border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: "20px",
     boxSizing: "border-box", // ← padding add kiya toh zaroori
+
+    position: "fixed", // ← व्यूपोर्ट पर हमेशा फिक्स रखने के लिए
+    bottom: "20px", // ← नीचे से 20px की दूरी (ताकि किनारे से न चिपके)
+    left: "50%", // ← सेंटर करने का पहला स्टेप
+    transform: "translateX(-50%)", // ← सेंटर करने का सटीक तरीका
+    zIndex: 1000,
   },
   textarea: {
     background: "rgba(255, 255, 255, 0.04)",

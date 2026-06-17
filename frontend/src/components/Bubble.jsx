@@ -14,7 +14,7 @@ const styles = {
     justifyContent: "flex-start",
   },
   bubble: {
-    maxWidth: "75%",
+    maxWidth: "100%",
     padding: "14px 18px",
     borderRadius: "16px",
     fontSize: "15px",

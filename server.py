@@ -252,6 +252,85 @@ def get_historical_chart(symbol: str, period: str = "1wk") -> str:
     }
     return f"Render this chart in the UI: CHART_DATA::{json.dumps(chart)}"
 
+# ============================================================
+#  LYRICS GENERATION — Feature 1 (generic, not brand-specific)
+#  Add this to server.py. NO tool — just these 2 primitives:
+#    1. Resource: lyrics://standards  (App-controlled, songwriting craft)
+#    2. Prompt:   lyrics_brief         (User-controlled, steers each song)
+#  Writing the lyrics is the model's job — not a tool's.
+# ============================================================
+
+
+# ---- RESOURCE: songwriting craft standards (App-controlled) ----
+# The heavy, reusable craft rules live here once. The client loads this into context.
+@mcp.resource("lyrics://standards")
+def lyrics_standards() -> str:
+    """Generic craft standards for writing great, original, singable lyrics."""
+    return (
+        "SONGWRITING STANDARDS (IntelliFrame Media Premium)\n"
+        "\n"
+        "CORE PRINCIPLE:\n"
+        "Great lyrics take a universal feeling and tell it through ONE specific, fresh lens.\n"
+        "Be concrete and surprising, not generic. Pick images that carry the emotion, not images that are just exact.\n"
+        "\n"
+        "LENGTH & OUTPUT (ONE-SHOT FINAL):\n"
+        "- 4-5 minutes of singable lyrics (a full song, not a fragment).\n"
+        "- ONE final, proofread block — ready to copy-paste.\n"
+        "- Deliver lyrics 100% correct in the first draft. No alternate versions. Avoid altering or correcting after generation unless explicitly requested. Preserve the workflow flow.\n"
+        "\n"
+        "STRUCTURE (Hybrid Fast Chorus Entry Format v2.6 - DEFAULT):\n"
+        "- Fast Entry is mandatory. Hit the Pre-Chorus and Chorus quickly to hook the listener.\n"
+        "- Sections: Intro / Verse 1 / Pre-Chorus / Chorus (Hook) / Verse 2 / Bridge / Hook Callback / Outro.\n"
+        "- Pre-Chorus: Flexible length (5–8 sec for Party/Swag; 10–15 sec for Romantic).\n"
+        "- Bridge: Optional for Party songs; MANDATORY for Romantic songs.\n"
+        "- Hook Callback: A 5–8 sec repetition of the core hook immediately after the Bridge.\n"
+        "- Outro: Shorter and precise (8–12 sec maximum, fade/cut based on genre).\n"
+        "\n"
+        "HOOK CRAFT (Viral Potential):\n"
+        "- Build ONE short, highly repeatable signature phrase or refrain, easy to chant and remember.\n"
+        "- Repetition is intentional but vary it slightly (build-up, answer-back, drop) so it never feels flat.\n"
+        "\n"
+        "WRITING CRAFT & BENCHMARKS:\n"
+        "- Romantic/Ghazal benchmark: 'Tuu Meri Dhun' style. Must be 'chumeswari'—soulful, simple, relatable, repeatable hooks, and deeply heart-touching.\n"
+        "- SHOW, don't tell. Convey emotion through scene, action, and detail.\n"
+        "- Keep a consistent point of view (who is singing, to whom). Make 'I' and 'you' real.\n"
+        "- Match the language register to the genre. Avoid unnatural English loanwords in Hindi romantic songs unless the genre specifically demands an urban bilingual flow.\n"
+        "\n"
+        "SOUND & PROSODY:\n"
+        "- Keep meter consistent between parallel lines.\n"
+        "- Match stress to the beat — stressed syllables land on strong beats.\n"
+        "- Meaning leads; rhyme serves it. NEVER force meaning to fit a rhyme.\n"
+        "\n"
+        "CONTENT (STRICT QUALITY GATE):\n"
+        "- Strictly ZERO vulgar, cheap, or adult words. Content must remain 100% clean, high-quality, and highly appropriate.\n"
+        "- Must signal IntelliFrame Media trust and premium quality at first glance.\n"
+        "\n"
+        "STYLE Tag:\n"
+        "- Provide the exact style tag of these lyrics along with the final output.\n"
+    )
+
+
+# ---- PROMPT: lyrics brief (User-controlled) ----
+# Stays small but steerable. The heavy craft comes from the resource.
+# Optional args sharpen specificity — 'anchor' is the strongest uniqueness lever.
+@mcp.prompt(title="Lyrics Brief")
+def lyrics_brief(mood: str, theme: str = "", language: str = "", anchor: str = "") -> str:
+    """Build an instruction to generate lyrics for a given mood/genre."""
+    lines = [f"Write original song lyrics. Mood / genre: {mood}."]
+    if theme:
+        lines.append(f"Theme / situation: {theme}.")
+    if language:
+        lines.append(f"Primary language: {language}.")
+    if anchor:
+        lines.append(f"Build the whole song around this concrete image/detail: {anchor}.")
+    lines.append(
+        "Follow the songwriting standards provided in context "
+        "(structure, hook craft, writing craft, prosody, and the quality gate)."
+    )
+    lines.append("Deliver ONE final, polished block — ready to copy-paste.")
+    return "\n".join(lines)
+
+
 # Server ko run karo
 if __name__ == "__main__":
     mcp.run()

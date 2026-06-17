@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Bubble from "./components/Bubble";
 import ChatBox from "./components/ChatBox";
@@ -8,6 +8,12 @@ import { theme } from "./theme";
 import NeuralBg from "./components/NeuralBg";
 import NexusCenter from "./components/NexusCenter";
 import Header from "./components/Header";
+import TabBar from "./components/TabBar";
+import Artifacts from "./components/Artifacts";
+
+// NOTE: must match the exact string TabBar passes for the Artifacts tab.
+// If your TabBar sends something else (e.g. "Artifacts / Code"), change ONLY this line.
+const ARTIFACTS_TAB = "Artifacts";
 
 const styles = {
   app: {
@@ -34,6 +40,12 @@ export default function App() {
   // saari chat history — array of messages
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("Chat");
+
+  const endRef = useRef(null);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
 
   // user message bheja
   const handleSend = async (text) => {
@@ -66,29 +78,53 @@ export default function App() {
     setMessages([]);
   };
 
+  const isArtifacts = activeTab === ARTIFACTS_TAB;
+
   return (
     <div style={styles.app}>
       <NeuralBg />
       <Header />
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
       <NexusCenter /> {/* Navbar ki jagah */}
-      <div style={styles.chatArea}>
-        <ChatBox
-          onSend={handleSend}
-          onNewChat={handleNewChat}
-          loading={loading}
-        />
-        <div style={{ marginTop: "30px" }}>
-          {[...messages]
-            .map((msg, i) => ({ msg, i })) // index yaad rakho
-            .reverse() // ulta karo (naya upar)
-            .map(({ msg, i }) => (
-              <div key={i}>
-                <Bubble role={msg.role} content={msg.content} />
-                {msg.chartData && <ChartWidget chartData={msg.chartData} />}
-              </div>
-            ))}
-        </div>
-      </div>
+      {/* Sirf neeche ka region badalta hai — top (Header/TabBar/NexusCenter) waisa hi */}
+      {isArtifacts ? (
+        <Artifacts />
+      ) : (
+        <>
+          <div style={styles.chatArea}>
+            <div style={{ paddingBottom: 170 }}>
+              {messages.map((msg, i) => (
+                <div key={i}>
+                  <Bubble role={msg.role} content={msg.content} />
+                  {msg.chartData && <ChartWidget chartData={msg.chartData} />}
+                </div>
+              ))}
+              <div ref={endRef} />
+            </div>
+          </div>
+
+          <div
+            style={{
+              position: "fixed",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10,
+              padding: "12px 20px",
+              background: theme.bg,
+              borderTop: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <div style={{ maxWidth: 700, margin: "0 auto" }}>
+              <ChatBox
+                onSend={handleSend}
+                onNewChat={handleNewChat}
+                loading={loading}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

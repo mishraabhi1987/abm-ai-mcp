@@ -5,7 +5,7 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    paddingTop: "6vh",
+    paddingTop: "0vh",
   },
   eyebrow: {
     fontFamily: theme.mono,
