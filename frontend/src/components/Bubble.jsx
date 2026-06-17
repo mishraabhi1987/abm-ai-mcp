@@ -20,8 +20,10 @@ const styles = {
     fontSize: "15px",
     lineHeight: "1.6",
     wordWrap: "break-word",
+    boxSizing: "border-box",
   },
   userBubble: {
+    maxWidth: "78%", // user message compact rahe, daayein
     background: "#3a2416",
     color: "#f0b541",
     border: "1px solid #5a3a1f",
@@ -29,6 +31,7 @@ const styles = {
     whiteSpace: "pre-wrap", // user text mein line breaks preserve
   },
   botBubble: {
+    width: "100%", // assistant reply hamesha poori width (consistent)
     background: "#1e1e1e",
     color: "#e8e8e8",
     border: "1px solid #2e2e2e",

@@ -105,8 +105,11 @@ export default function CodeArtifact({ initialCode = SAMPLE }) {
         border: `1px solid ${C.border}`,
         overflow: "hidden",
         fontFamily: "system-ui, sans-serif",
-        maxWidth: 760,
-        margin: "0 auto",
+        width: "100%",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <div
@@ -117,6 +120,7 @@ export default function CodeArtifact({ initialCode = SAMPLE }) {
           padding: "10px 12px",
           borderBottom: `1px solid ${C.border}`,
           background: C.panel,
+          flexShrink: 0,
         }}
       >
         <span
@@ -159,9 +163,10 @@ export default function CodeArtifact({ initialCode = SAMPLE }) {
           spellCheck={false}
           style={{
             width: "100%",
-            height: 360,
+            flex: 1,
+            minHeight: 0,
             boxSizing: "border-box",
-            resize: "vertical",
+            resize: "none",
             border: "none",
             outline: "none",
             padding: 16,
@@ -173,7 +178,14 @@ export default function CodeArtifact({ initialCode = SAMPLE }) {
           }}
         />
       ) : (
-        <div style={{ position: "relative" }}>
+        <div
+          style={{
+            position: "relative",
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+          }}
+        >
           <button
             onClick={() => setRunKey((k) => k + 1)}
             style={{
@@ -203,7 +215,8 @@ export default function CodeArtifact({ initialCode = SAMPLE }) {
             sandbox="allow-scripts allow-modals"
             style={{
               width: "100%",
-              height: 360,
+              flex: 1,
+              minHeight: 0,
               border: "none",
               background: "#fff",
               display: "block",

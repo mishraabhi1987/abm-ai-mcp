@@ -1,16 +1,14 @@
 import { useState } from "react";
 import { theme } from "../theme";
 import CodeArtifact from "./CodeArtifact";
-import { sendMessage, generateLyrics } from "../api/chat";
 import CopyBlock from "./CopyBlock";
+import { sendMessage, generateLyrics } from "../api/chat";
 
-// Code mode: wrap the user's request so the model returns a single clean HTML file.
 const CODE_INSTRUCTION =
   "You are a code generator. Output ONE complete, self-contained HTML document " +
   "with inline <style> and <script> (HTML + CSS + JS in a single file). " +
   "Return ONLY the raw code — no explanation, no markdown fences. Request: ";
 
-// Pull clean code out of the model's reply (handles fences / stray text).
 function extractCode(text) {
   if (!text) return "";
   const fence = text.match(/```(?:html|js|javascript)?\s*([\s\S]*?)```/i);
@@ -24,7 +22,7 @@ export default function Artifacts() {
   const [mode, setMode] = useState("code"); // "code" | "lyrics"
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
-  const [output, setOutput] = useState(null); // { type: "code"|"lyrics", code|text }
+  const [output, setOutput] = useState(null); // { type, code|text }
   const [error, setError] = useState("");
 
   const C = {
@@ -46,7 +44,7 @@ export default function Artifacts() {
         const { answer } = await sendMessage(CODE_INSTRUCTION + p);
         setOutput({ type: "code", code: extractCode(answer) });
       } else {
-        const { lyrics } = await generateLyrics(p); // whole input = mood / genre
+        const { lyrics } = await generateLyrics(p);
         setOutput({ type: "lyrics", text: lyrics });
       }
     } catch (e) {
@@ -68,42 +66,63 @@ export default function Artifacts() {
   });
 
   return (
-    <>
-      {/* OUTPUT — page flow ke andar scroll hota hai, fixed input ke upar.
-          paddingBottom = bottom bar ki height (jugaad: apni asli height se match karo) */}
+    // Fills the area below the top zone, as its own flex column
+    <div
+      style={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        zIndex: 1,
+        fontFamily: theme.inter,
+        color: theme.text,
+      }}
+    >
+      {/* MIDDLE — fills remaining height (top zone & input are fixed) */}
       <div
         style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          padding: "0 20px",
-          paddingBottom: 230,
-          fontFamily: theme.inter,
-          color: theme.text,
+          flex: 1,
+          minHeight: 0,
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {error && (
-          <p style={{ color: C.red, fontSize: 14, marginBottom: 14 }}>
-            {error}
-          </p>
-        )}
-
-        {output?.type === "code" && <CodeArtifact initialCode={output.code} />}
-        {output?.type === "lyrics" && (
-          <CopyBlock content={output.text} label="Lyrics" />
-        )}
+        <div
+          style={{
+            maxWidth: 760,
+            width: "100%",
+            margin: "0 auto",
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {error && (
+            <p style={{ color: C.red, fontSize: 14, marginBottom: 14 }}>
+              {error}
+            </p>
+          )}
+          {output?.type === "code" && (
+            <CodeArtifact initialCode={output.code} />
+          )}
+          {output?.type === "lyrics" && (
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+              <CopyBlock content={output.text} label="Lyrics" />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* INPUT bar — neeche fixed, bilkul chat ki tarah */}
+      {/* BOTTOM — fixed input: toggle (left) + generate (right) */}
       <div
         style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 10,
-          padding: "12px 20px",
-          background: theme.bg,
+          flexShrink: 0,
+          padding: "12px 20px 16px",
           borderTop: `1px solid ${C.border}`,
+          background: theme.bg,
         }}
       >
         <div
@@ -139,7 +158,6 @@ export default function Artifacts() {
             }}
           />
 
-          {/* bottom row: LEFT = Code/Lyrics toggle, RIGHT = Generate button */}
           <div
             style={{
               display: "flex",
@@ -204,6 +222,6 @@ export default function Artifacts() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

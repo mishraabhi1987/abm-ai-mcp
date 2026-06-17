@@ -8,21 +8,16 @@ const styles = {
     gap: "12px",
     maxWidth: "700px",
     margin: "0 auto",
-    marginTop: "30px",
     width: "100%",
-    padding: "20px", // ← glass panel ko andar space
+    padding: "20px",
     background: "rgba(20, 20, 24, 0.45)",
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: "20px",
-    boxSizing: "border-box", // ← padding add kiya toh zaroori
-
-    position: "fixed", // ← व्यूपोर्ट पर हमेशा फिक्स रखने के लिए
-    bottom: "20px", // ← नीचे से 20px की दूरी (ताकि किनारे से न चिपके)
-    left: "50%", // ← सेंटर करने का पहला स्टेप
-    transform: "translateX(-50%)", // ← सेंटर करने का सटीक तरीका
-    zIndex: 1000,
+    boxSizing: "border-box",
+    // NOTE: position:fixed/bottom/left/transform/zIndex hata diye —
+    // ab ye App ke bottom zone (flexShrink:0) ke andar normal block hai.
   },
   textarea: {
     background: "rgba(255, 255, 255, 0.04)",
@@ -56,14 +51,6 @@ const styles = {
     background: "#5a3a2a",
     cursor: "not-allowed",
   },
-  chatBox: {
-    background: "rgba(20, 20, 24, 0.45)", // solid se transparent
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)", // Safari ke liye (tum Mac pe ho)
-    border: "1px solid rgba(255, 255, 255, 0.08)",
-    borderRadius: "20px",
-    // ...baaki same
-  },
 };
 
 export default function ChatBox({ onSend, onNewChat, loading }) {
@@ -72,8 +59,8 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
   const handleSend = () => {
     const text = input.trim();
     if (!text || loading) return;
-    onSend(text); // parent ko message bhejo
-    setInput(""); // input clear karo
+    onSend(text);
+    setInput("");
   };
 
   // Enter = send, Shift+Enter = new line
@@ -86,7 +73,6 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
 
   return (
     <div style={styles.container}>
-      {/* New Chat — top right */}
       <textarea
         className="nexus-textarea"
         style={styles.textarea}
@@ -103,7 +89,6 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
           marginTop: "8px",
         }}
       >
-        {/* New Chat — left */}
         <button
           style={{
             fontFamily: theme.sora,
@@ -122,12 +107,11 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
           + New Chat
         </button>
 
-        {/* Ask — right */}
         <button
           style={{
             ...styles.askBtn,
-            alignSelf: "auto", // override
-            marginTop: 0, // override
+            alignSelf: "auto",
+            marginTop: 0,
             ...(loading ? styles.askBtnDisabled : {}),
           }}
           onClick={handleSend}

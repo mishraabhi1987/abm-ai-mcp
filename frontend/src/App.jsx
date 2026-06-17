@@ -1,23 +1,24 @@
 import { useState, useRef, useEffect } from "react";
-import Navbar from "./components/Navbar";
 import Bubble from "./components/Bubble";
 import ChatBox from "./components/ChatBox";
 import ChartWidget from "./components/ChartWidget";
 import { sendMessage, newChat } from "./api/chat";
 import { theme } from "./theme";
-import NeuralBg from "./components/NeuralBg";
-import NexusCenter from "./components/NexusCenter";
+import Backdrop from "./components/Backdrop";
 import Header from "./components/Header";
 import TabBar from "./components/TabBar";
 import Artifacts from "./components/Artifacts";
 
-// NOTE: must match the exact string TabBar passes for the Artifacts tab.
-// If your TabBar sends something else (e.g. "Artifacts / Code"), change ONLY this line.
+// Must match the exact string TabBar passes for the Artifacts tab.
 const ARTIFACTS_TAB = "Artifacts";
 
 const styles = {
-  app: {
-    minHeight: "100vh",
+  // Full-height flex column. The PAGE never scrolls — only the middle does.
+  shell: {
+    height: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
     background: `
       radial-gradient(900px 480px at 50% -8%, rgba(199,5,5,0.10), transparent 62%),
       radial-gradient(700px 420px at 50% 108%, rgba(255,200,61,0.06), transparent 60%),
@@ -25,42 +26,59 @@ const styles = {
     `,
     color: theme.text,
     fontFamily: theme.inter,
-    paddingBottom: "80px",
+  },
+  top: {
+    flexShrink: 0, // Header + TabBar — fixed, never scrolls
+    position: "relative",
+    zIndex: 1, // sit above the Backdrop (zIndex 0)
+  },
+  pane: {
+    flex: 1,
+    minHeight: 0, // CRITICAL: lets the scroll child shrink instead of overflowing
+    display: "flex",
+    flexDirection: "column",
     position: "relative",
     zIndex: 1,
   },
-  chatArea: {
-    maxWidth: "700px",
-    margin: "0 auto",
+  scrollArea: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: "auto", // <-- the ONLY scrolling region
     padding: "0 20px",
+  },
+  feed: {
+    maxWidth: 700,
+    margin: "0 auto",
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  bottom: {
+    flexShrink: 0, // Chatbox — fixed at the bottom
+    padding: "12px 20px 16px",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+    background: theme.bg,
   },
 };
 
 export default function App() {
-  // saari chat history — array of messages
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("Chat");
 
   const endRef = useRef(null);
   useEffect(() => {
+    // scrolls ONLY the middle area (its nearest scrollable ancestor), not the page
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
-  // user message bheja
   const handleSend = async (text) => {
-    // 1. user ka message turant dikhao
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
-
     try {
-      // 2. backend se jawab lao
       const { answer, chartData } = await sendMessage(text);
-
-      // 3. assistant ka jawab add karo
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: answer, chartData: chartData },
+        { role: "assistant", content: answer, chartData },
       ]);
     } catch (err) {
       setMessages((prev) => [
@@ -72,7 +90,6 @@ export default function App() {
     }
   };
 
-  // New Chat button
   const handleNewChat = async () => {
     await newChat();
     setMessages([]);
@@ -81,18 +98,23 @@ export default function App() {
   const isArtifacts = activeTab === ARTIFACTS_TAB;
 
   return (
-    <div style={styles.app}>
-      <NeuralBg />
-      <Header />
-      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
-      <NexusCenter /> {/* Navbar ki jagah */}
-      {/* Sirf neeche ka region badalta hai — top (Header/TabBar/NexusCenter) waisa hi */}
+    <div style={styles.shell}>
+      <Backdrop />
+
+      {/* TOP — fixed (never scrolls) */}
+      <div style={styles.top}>
+        <Header />
+        <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
+
+      {/* BELOW TOP — fills the remaining height */}
       {isArtifacts ? (
         <Artifacts />
       ) : (
-        <>
-          <div style={styles.chatArea}>
-            <div style={{ paddingBottom: 170 }}>
+        <div style={styles.pane}>
+          {/* MIDDLE — only this scrolls */}
+          <div style={styles.scrollArea}>
+            <div style={styles.feed}>
               {messages.map((msg, i) => (
                 <div key={i}>
                   <Bubble role={msg.role} content={msg.content} />
@@ -103,27 +125,15 @@ export default function App() {
             </div>
           </div>
 
-          <div
-            style={{
-              position: "fixed",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 10,
-              padding: "12px 20px",
-              background: theme.bg,
-              borderTop: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <div style={{ maxWidth: 700, margin: "0 auto" }}>
-              <ChatBox
-                onSend={handleSend}
-                onNewChat={handleNewChat}
-                loading={loading}
-              />
-            </div>
+          {/* BOTTOM — fixed chatbox */}
+          <div style={styles.bottom}>
+            <ChatBox
+              onSend={handleSend}
+              onNewChat={handleNewChat}
+              loading={loading}
+            />
           </div>
-        </>
+        </div>
       )}
     </div>
   );
