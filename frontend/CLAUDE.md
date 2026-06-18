@@ -60,11 +60,11 @@ Active tab styling: `theme.accentDeep` background pill. Tab font: Sora 600.
 
 Internal sub-mode toggle: `"code"` | `"lyrics"`. Both modes are fully functional.
 
-**Code mode** — prepends `CODE_INSTRUCTION` to the user prompt, calls `sendMessage`, extracts raw HTML from the response with `extractCode` (strips markdown fences if present), and passes it to `<CodeArtifact />`. `CodeArtifact` provides an editable textarea (Code view) and a sandboxed live iframe (Preview view), toggled via a tab strip. A `wrapForPreview` harness is defined in `CodeArtifact.jsx` but deliberately bypassed — the iframe uses `srcDoc={code}` directly.
+**Code mode** — maintains its own `artifactsSessionId` state for multi-turn refinement. Each generate call passes this session ID to `sendMessage` and updates it from the response. `CODE_INSTRUCTION` instructs the model to modify existing code incrementally (not rebuild) and default to a dark background. Mode switches via `switchMode()` which resets `artifactsSessionId`, `output`, and `error` — intentional so Code and Lyrics contexts don't bleed across switches. `extractCode` strips markdown fences if present; the cleaned HTML is passed to `<CodeArtifact />` for live iframe preview.
 
-**Lyrics mode** — calls `generateLyrics(prompt)` which hits `/api/lyrics`. Output is shown in `<CopyBlock />` with a one-click copy button (clipboard API with `execCommand` fallback).
+**Lyrics mode** — always stateless and one-shot. Calls `generateLyrics(prompt)` directly (no session ID). Output shown in `<CopyBlock />`. Do NOT add session memory to lyrics generation.
 
-Mode state resets output and error on toggle — intentional.
+**`switchMode(next)`** is the only correct way to change mode — do not call `setMode` directly, as it would skip the session and output resets.
 
 ## Component conventions
 
@@ -76,8 +76,12 @@ Mode state resets output and error on toggle — intentional.
 
 ## API layer (`src/api/chat.js`)
 
-`sessionId` is held in module-level scope (persists across renders, resets on `newChat()`). Three exports:
+`sessionId` is held in module-level scope for the main chat tab. Callers that manage their own session (e.g. Artifacts) pass it explicitly via the options argument. Three exports:
 
-- `sendMessage(message, mode?)` — POST `/chat`, returns `{ answer, chartData }`.
-- `newChat()` — POST `/new`, nulls out `sessionId`.
-- `generateLyrics(prompt)` — POST `http://localhost:8000/api/lyrics`, returns `{ lyrics }`. The whole input is passed as the `mood` field.
+- `sendMessage(message, mode?, { sessionId?, attachments? }?)` — POST `/chat`. Returns `{ answer, chartData, sessionId }`. If `sessionId` is passed in options, the module-level session is not updated (caller owns that session). Attachments are `[{ filename, media_type, data_base64 }]`.
+- `newChat()` — POST `/new`, nulls out the module-level `sessionId`.
+- `generateLyrics(prompt)` — POST `http://localhost:8000/api/lyrics`, returns `{ lyrics }`. Always stateless — no session ID.
+
+## ChatBox (`src/components/ChatBox.jsx`)
+
+`onSend(text, attachments)` — both arguments are now required by callers. `attachments` is an array of `{ filename, media_type, data_base64 }` objects (empty array when no files attached). A hidden `<input type="file">` (PDF, images, `.txt`, `.md`) feeds an `attachments` state; selected files are read to base64 via `FileReader`. File chips (filename + × remove button) render above the textarea when files are present. The `⊕ Attach` button uses the same `secondaryBtn` style as `+ New Chat`. Clear attachments after send — already done in `handleSend`.
