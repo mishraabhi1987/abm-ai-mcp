@@ -35,16 +35,19 @@ The system has two Python files and a legacy standalone client:
 
 **`main.py`** — FastAPI app and agentic loop. On each `/chat` POST it:
 
-1. Connects to the local stdio MCP server (mandatory) via `AsyncExitStack`.
-2. Attempts to connect to the remote LiteLLM MCP server with a 5 s `asyncio.wait_for` timeout; any failure logs a warning and continues with local tools only — the request never 500s when LiteLLM is down.
-3. Builds a `tool_routing` dict (`tool_name → session`) with `LOCAL_PRIORITY = True` so local tools win on name collision.
-4. Deduplicates the merged tool list before sending to Claude — the Anthropic API never receives two tools with the same name.
-5. Runs an agentic loop calling `claude-haiku-4-5` (via `AsyncAnthropic`) with the deduplicated tool set.
-6. Routes each `tool_use` block through `tool_routing`; unknown tool names return an empty result.
-7. Parses MCP result content into Anthropic's strict schema (text/image) before appending as `tool_result`.
-8. Detects `CHART_DATA::` in the final text and splits it into `{"text": ..., "chart_data": {...}}` for the frontend to render.
+1. Validates attachment size (≤ 15 MB decoded; `ATTACH_LIMIT_BYTES` constant); raises 413 on violation.
+2. Builds a content-block list for the user turn: text block for the message, `document` blocks for PDFs, `image` blocks for images, inline `text` blocks (truncated at 4 000 chars) for `.txt`/`.md`. User content is always a block list, never a bare string.
+3. Retrieves session history from `SessionStore` (200-message FIFO cap; SQLite TODO seam), appends the user turn, runs the agent, saves back.
+4. Connects to the local stdio MCP server (mandatory) via `AsyncExitStack`.
+5. Attempts to connect to the remote LiteLLM MCP server with a 5 s `asyncio.wait_for` timeout; any failure logs a warning and continues with local tools only — the request never 500s when LiteLLM is down.
+6. Builds a `tool_routing` dict (`tool_name → session`) with `LOCAL_PRIORITY = True` so local tools win on name collision.
+7. Deduplicates the merged tool list before sending to Claude — the Anthropic API never receives two tools with the same name.
+8. Runs an agentic loop calling `claude-haiku-4-5` (via `AsyncAnthropic`) with the deduplicated tool set.
+9. Routes each `tool_use` block through `tool_routing`; unknown tool names return an empty result.
+10. Parses MCP result content into Anthropic's strict schema (text/image) before appending as `tool_result`.
+11. Detects `CHART_DATA::` in the final text and splits it into `{"text": ..., "chart_data": {...}}` for the frontend to render.
 
-Conversation history is stored in memory per `session_id` in the `conversations` dict. `/new` clears a session.
+Conversation history is stored in `SessionStore` (module-level `session_store`). `/new` calls `session_store.reset(session_id)`.
 
 **`/api/lyrics`** — Separate endpoint that connects only to the local MCP server, reads the `lyrics://standards` resource and `lyrics_brief` prompt, then calls Claude directly (no tool loop).
 
@@ -61,6 +64,10 @@ Conversation history is stored in memory per `session_id` in the `conversations`
 ## Conventions & rules (always follow)
 
 - Always `source venv/bin/activate` before running anything. Python 3.13 venv.
+- User message content is always a **block list** (never a bare string) — the `/chat`
+  endpoint builds it before appending to history. Do not revert to `content: req.message`.
+- Attachments are validated against `ATTACH_LIMIT_BYTES` (15 MB decoded) before processing.
+  Exceeding the limit must return a 413, not silently truncate.
 - MCP tool results MUST be parsed into Anthropic's strict text/image schema
   before appending as `tool_result` — malformed schema breaks the agentic loop.
 - Tool routing is local-first by design (`LOCAL_PRIORITY = True`).
