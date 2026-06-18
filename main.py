@@ -249,8 +249,12 @@ async def run_agent(messages: list, mode: str = "auto") -> dict:
                         "tool_use_id": block.id,
                         "content": formatted_content,
                     })
-            if not tool_results:
-                break
+            if not tool_results: 
+                salvage = ""
+                for b in response.content:
+                    if b.type == "text":
+                        salvage += b.text
+                return {"text": salvage or "Sorry, I couldn't generate a response. Please try again.", "chart_data": None}
             messages.append({"role": "user", "content": tool_results})
             tool_choice = {"type": "auto"}
 
