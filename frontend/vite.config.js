@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       "/chat": "http://localhost:8000",
       "/new": "http://localhost:8000",
+      "/api/agent": "http://localhost:8001",
     },
   },
 });

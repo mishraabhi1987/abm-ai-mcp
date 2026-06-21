@@ -8,9 +8,11 @@ import Backdrop from "./components/Backdrop";
 import Header from "./components/Header";
 import TabBar from "./components/TabBar";
 import Artifacts from "./components/Artifacts";
+import Agents from "./components/Agents";
 
-// Must match the exact string TabBar passes for the Artifacts tab.
+// Must match the exact strings TabBar passes for these tabs.
 const ARTIFACTS_TAB = "Artifacts";
+const AGENTS_TAB = "Agents";
 
 const styles = {
   // Full-height flex column. The PAGE never scrolls — only the middle does.
@@ -98,6 +100,7 @@ export default function App() {
   };
 
   const isArtifacts = activeTab === ARTIFACTS_TAB;
+  const isAgents = activeTab === AGENTS_TAB;
 
   return (
     <div style={styles.shell}>
@@ -112,6 +115,8 @@ export default function App() {
       {/* BELOW TOP — fills the remaining height */}
       {isArtifacts ? (
         <Artifacts />
+      ) : isAgents ? (
+        <Agents />
       ) : (
         <div style={styles.pane}>
           {/* MIDDLE — only this scrolls */}

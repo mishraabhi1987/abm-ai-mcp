@@ -1,7 +1,9 @@
 import os
 import json
+import logging
 import requests
 import numexpr
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from tavily import TavilyClient
@@ -136,35 +138,111 @@ def web_search(query: str) -> str:
         results.append(f"{r['title']}: {r['content']}")
     return "\n\n".join(results) if results else "No result found."
 
+# ============================================================
+# STRUCTURED HELPERS — used by agent_server.py directly.
+# The MCP tools below wrap these and return the same strings
+# they always did, so Chat Bot / Artifacts are unaffected.
+# ============================================================
+
+def _price_not_found(symbol: str) -> str:
+    has_suffix = any(symbol.upper().endswith(s) for s in (".NS", ".BO", ".US"))
+    if has_suffix:
+        return f"Symbol '{symbol}' not found. Check the spelling — e.g. RELIANCE.NS, TCS.NS."
+    return f"Symbol '{symbol}' not found. For NSE stocks add .NS (e.g. RELIANCE.NS)."
+
+
+def fetch_stock_price(symbol: str) -> dict:
+    """Return structured price data for a symbol, or {"error": "..."} on failure."""
+    try:
+        ticker = yf.Ticker(symbol)
+        info = ticker.fast_info
+        price = info.last_price
+        prev_close = info.previous_close
+        if price is None:
+            return {"error": _price_not_found(symbol)}
+        change = price - (prev_close or 0)
+        change_pct = (change / prev_close * 100) if prev_close else 0
+        return {
+            "symbol": symbol,
+            "current": round(price, 2),
+            "prev_close": round(prev_close, 2) if prev_close is not None else None,
+            "change": round(change, 2),
+            "change_pct": round(change_pct, 2),
+            "currency": info.currency or "",
+        }
+    except Exception as e:
+        logging.warning("fetch_stock_price failed for '%s': %s", symbol, e)
+        return {"error": _price_not_found(symbol)}
+
+
+def fetch_stock_news(company: str, max_results: int = 5) -> list:
+    """Return structured news list for a company, or [] on any failure."""
+    try:
+        res = tavily_client.search(
+            query=f"{company} stock latest news",
+            topic="news",
+            days=7,
+            max_results=max_results,
+            include_domains=[
+                "reuters.com", "livemint.com",
+                "economictimes.indiatimes.com",
+                "moneycontrol.com", "thehindu.com",
+            ],
+        )
+    except Exception as e:
+        logging.warning("fetch_stock_news failed for '%s': %s", company, e)
+        return []
+    items = []
+    for r in res.get("results", []):
+        url = r.get("url", "")
+        try:
+            source = urlparse(url).netloc.replace("www.", "")
+        except Exception:
+            source = ""
+        items.append({
+            "title": r.get("title", ""),
+            "url": url,
+            "source": source,
+            "date": r.get("published_date", "") or "",
+            "summary": (r.get("content") or "")[:200],
+        })
+    return items
+
+
 # Stock price MCP tool
-#@mcp.tool()
+@mcp.tool()
 def get_stock_price(symbol: str) -> str:
     """Get the current price, change %, and basic info for a stock.
     For Indian (NSE) stocks, add .NS after the symbol (e.g. RELIANCE.NS, TCS.NS).
     For US stocks, use the symbol directly (e.g. AAPL, TSLA). Use this for live stock/share prices."""
-    ticker = yf.Ticker(symbol)
-    info = ticker.fast_info  # fast_info is faster and less rate-limited than .info
-
-    price = info.get("lastPrice")
-    prev_close = info.get("previousClose")
-
-    if price is None:
-        return f"No data found for '{symbol}'. Check the symbol (add .NS for NSE stocks)."
-
-    change = price - prev_close
-    change_pct = (change / prev_close * 100) if prev_close else 0
-
-    currency = info.get("currency", "")
+    data = fetch_stock_price(symbol)
+    if "error" in data:
+        return data["error"]
     return (
-        f"{symbol}\n"
-        f"Price: {price:.2f} {currency}\n"
-        f"Previous Close: {prev_close:.2f}\n"
-        f"Change: {change:+.2f} ({change_pct:+.2f}%)"
+        f"{data['symbol']}\n"
+        f"Price: {data['current']:.2f} {data['currency']}\n"
+        f"Previous Close: {data['prev_close']:.2f}\n"
+        f"Change: {data['change']:+.2f} ({data['change_pct']:+.2f}%)"
     )
 
+@mcp.tool()
+def get_stock_news(company: str, max_results: int = 5) -> str:
+    """Kisi company/stock ki latest news laata hai (Tavily news search).
+
+    Args:
+        company: Company ya stock ka naam (jaise 'Reliance Industries', 'CDSL')
+        max_results: Kitni news items chahiye (default 5)
+    """
+    items = fetch_stock_news(company, max_results)
+    if not items:
+        return f"'{company}' ke liye koi recent news nahi mili."
+    lines = []
+    for i, r in enumerate(items, 1):
+        lines.append(f"{i}. {r['title']}\n   {r['url']}\n   {r['summary']}")
+    return "\n\n".join(lines)
 
 # MCP tool for getting current weather of a city using Open-Meteo API
-#@mcp.tool()
+@mcp.tool()
 def get_weather(city: str) -> str:
     """Get the current weather for a city (temperature, wind, conditions).
     Works for any city worldwide, e.g. 'Noida', 'London', 'Tokyo'.

@@ -39,8 +39,8 @@ const styles = {
   },
 };
 
-// Markdown content ke liye compact styles (alag variable)
-const mdStyles = `
+// Markdown content ke liye compact styles — exported so other panels can reuse
+export const mdStyles = `
   .md-content > *:first-child { margin-top: 0; }
   .md-content > *:last-child { margin-bottom: 0; }
   .md-content h1, .md-content h2, .md-content h3 {
