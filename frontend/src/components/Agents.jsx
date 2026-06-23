@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { marked } from "marked";
 import { theme } from "../theme";
+import { inputAreaContainer, inputAreaTextarea } from "../styles/inputArea";
 import { mdStyles } from "./Bubble";
 import { runFinanceAgent } from "../api/agents";
 
-const MODES = ["Finance"];
+const MODES = ["Finance Agent"];
 
 function exchangeLabel(symbol) {
   if (symbol.endsWith(".NS")) return "NSE";
@@ -43,7 +44,7 @@ const styles = {
     padding: "20px 20px 0",
   },
   content: {
-    maxWidth: 760,
+    maxWidth: 700,
     margin: "0 auto",
     paddingBottom: 24,
   },
@@ -214,40 +215,33 @@ const styles = {
     borderTop: `1px solid ${theme.line}`,
     background: theme.bg,
   },
-  inputBox: {
-    maxWidth: 760,
-    margin: "0 auto",
-    background: theme.surface,
-    border: `1px solid ${theme.line}`,
-    borderRadius: 16,
-    padding: 14,
-  },
-  textarea: {
-    width: "100%",
-    minHeight: 70,
-    boxSizing: "border-box",
-    resize: "vertical",
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    color: theme.text,
-    fontFamily: theme.inter,
-    fontSize: 15,
-    lineHeight: 1.6,
-  },
+  inputBox: { ...inputAreaContainer },
+  textarea: { ...inputAreaTextarea },
   actions: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 8,
   },
-  modeToggle: {
-    display: "flex",
-    gap: 6,
+  modeSelect: {
     background: theme.bgSoft,
     border: `1px solid ${theme.line}`,
     borderRadius: 10,
-    padding: 4,
+    color: theme.text,
+    fontSize: 13,
+    fontWeight: 500,
+    fontFamily: theme.inter,
+    padding: "8px 36px 8px 14px",
+    cursor: "pointer",
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    backgroundImage: `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23e0a418' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 12px center",
+    backgroundSize: "12px",
+    outline: "none",
+    transition: "border-color 0.18s, box-shadow 0.18s",
   },
 };
 
@@ -267,37 +261,24 @@ function changePillStyle(change) {
   };
 }
 
-function subTabStyle(active) {
-  return {
-    padding: "6px 14px",
-    fontSize: 13,
-    borderRadius: 8,
-    cursor: "pointer",
-    border: "none",
-    fontWeight: active ? 600 : 400,
-    background: active ? theme.primaryDeep : "transparent",
-    color: active ? "#fff" : theme.textDim,
-    fontFamily: theme.inter,
-  };
-}
 
 function runBtnStyle(loading) {
   return {
-    padding: "10px 20px",
-    borderRadius: 10,
-    border: "none",
-    cursor: loading ? "default" : "pointer",
-    fontWeight: 600,
-    fontSize: 15,
-    background: theme.primaryDeep,
+    padding: "13px 30px",
+    background: loading ? "#5a3a2a" : "#c70505",
     color: "#fff",
-    opacity: loading ? 0.6 : 1,
+    border: "none",
+    borderRadius: 10,
+    cursor: loading ? "not-allowed" : "pointer",
+    fontSize: 15,
+    fontWeight: 700,
     fontFamily: theme.inter,
+    transition: "background 0.2s, box-shadow 0.2s",
   };
 }
 
 export default function Agents() {
-  const [mode, setMode] = useState("Finance");
+  const [mode, setMode] = useState("Finance Agent");
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -345,6 +326,14 @@ export default function Agents() {
           border-color: rgba(255,255,255,0.12) !important;
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
+        }
+        .agent-mode-select:focus {
+          border-color: rgba(224,164,24,0.5);
+          box-shadow: 0 0 0 2.5px rgba(224,164,24,0.12);
+        }
+        .agent-mode-select option {
+          background: #131316;
+          color: #f2f2f4;
         }
       `}</style>
 
@@ -450,14 +439,17 @@ export default function Agents() {
             style={styles.textarea}
           />
           <div style={styles.actions}>
-            <div style={styles.modeToggle}>
+            <select
+              value={mode}
+              onChange={(e) => switchMode(e.target.value)}
+              style={styles.modeSelect}
+              className="agent-mode-select"
+            >
               {MODES.map((m) => (
-                <button key={m} style={subTabStyle(mode === m)} onClick={() => switchMode(m)}>
-                  {m}
-                </button>
+                <option key={m} value={m}>{m}</option>
               ))}
-            </div>
-            <button onClick={handleRun} disabled={loading} style={runBtnStyle(loading)}>
+            </select>
+            <button type="button" onClick={handleRun} disabled={loading} style={runBtnStyle(loading)}>
               {loading ? "Analyzing…" : "Run agent →"}
             </button>
           </div>

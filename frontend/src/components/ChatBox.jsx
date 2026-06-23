@@ -1,37 +1,10 @@
 import { useState, useRef } from "react";
 import { theme } from "../theme";
+import { inputAreaContainer, inputAreaTextarea } from "../styles/inputArea";
 
 const styles = {
-  container: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-    maxWidth: "700px",
-    margin: "0 auto",
-    width: "100%",
-    padding: "20px",
-    background: "rgba(20, 20, 24, 0.45)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "20px",
-    boxSizing: "border-box",
-  },
-  textarea: {
-    background: "rgba(255, 255, 255, 0.04)",
-    width: "100%",
-    minHeight: "90px",
-    padding: "16px",
-    color: "#e8e8e8",
-    border: "1px solid #2e2e2e",
-    borderRadius: "14px",
-    fontSize: "15px",
-    resize: "vertical",
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-    outline: "none",
-    boxShadow: "0 0 30px rgba(199,5,5,0.25)",
-  },
+  container: { ...inputAreaContainer },
+  textarea: { ...inputAreaTextarea },
   askBtn: {
     alignSelf: "flex-end",
     padding: "13px 30px",

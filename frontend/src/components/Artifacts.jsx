@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { theme } from "../theme";
+import { inputAreaContainer, inputAreaTextarea } from "../styles/inputArea";
 import CodeArtifact from "./CodeArtifact";
 import CopyBlock from "./CopyBlock";
 import { sendMessage, generateLyrics } from "../api/chat";
@@ -80,9 +81,9 @@ export default function Artifacts() {
     borderRadius: 8,
     cursor: "pointer",
     border: "none",
-    fontWeight: active ? 600 : 400,
-    background: active ? C.red : "transparent",
-    color: active ? "#fff" : C.muted,
+    fontWeight: active ? 700 : 500,
+    background: active ? theme.accentDeep : "transparent",
+    color: active ? "#0a0a0b" : theme.textDim,
   });
 
   return (
@@ -111,7 +112,7 @@ export default function Artifacts() {
       >
         <div
           style={{
-            maxWidth: 760,
+            maxWidth: 700,
             width: "100%",
             margin: "0 auto",
             flex: 1,
@@ -145,16 +146,7 @@ export default function Artifacts() {
           background: theme.bg,
         }}
       >
-        <div
-          style={{
-            maxWidth: 760,
-            margin: "0 auto",
-            background: C.panel,
-            border: `1px solid ${C.border}`,
-            borderRadius: 16,
-            padding: 14,
-          }}
-        >
+        <div style={inputAreaContainer}>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -163,19 +155,7 @@ export default function Artifacts() {
                 ? "Describe the UI — e.g. a glowing pricing card with a hover effect"
                 : "Genre / mood — e.g. hindi romantic, anchor: a fading evening"
             }
-            style={{
-              width: "100%",
-              minHeight: 70,
-              boxSizing: "border-box",
-              resize: "vertical",
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              color: theme.text,
-              fontFamily: theme.inter,
-              fontSize: 15,
-              lineHeight: 1.6,
-            }}
+            style={inputAreaTextarea}
           />
 
           <div
@@ -190,19 +170,21 @@ export default function Artifacts() {
               style={{
                 display: "flex",
                 gap: 6,
-                background: C.bg,
-                border: `1px solid ${C.border}`,
+                background: theme.bgSoft,
+                border: `1px solid ${theme.line}`,
                 borderRadius: 10,
                 padding: 4,
               }}
             >
               <button
+                type="button"
                 style={tab(mode === "code")}
                 onClick={() => switchMode("code")}
               >
                 Code
               </button>
               <button
+                type="button"
                 style={tab(mode === "lyrics")}
                 onClick={() => switchMode("lyrics")}
               >
@@ -211,18 +193,19 @@ export default function Artifacts() {
             </div>
 
             <button
+              type="button"
               onClick={handleGenerate}
               disabled={loading}
               style={{
-                padding: "10px 20px",
-                borderRadius: 10,
-                border: "none",
-                cursor: loading ? "default" : "pointer",
-                fontWeight: 600,
-                fontSize: 15,
-                background: C.red,
+                padding: "13px 30px",
+                background: loading ? "#5a3a2a" : "#c70505",
                 color: "#fff",
-                opacity: loading ? 0.6 : 1,
+                border: "none",
+                borderRadius: 10,
+                cursor: loading ? "not-allowed" : "pointer",
+                fontSize: 15,
+                fontWeight: 700,
+                transition: "background 0.2s, box-shadow 0.2s",
               }}
             >
               {loading

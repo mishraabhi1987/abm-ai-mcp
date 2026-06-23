@@ -10,9 +10,8 @@ import TabBar from "./components/TabBar";
 import Artifacts from "./components/Artifacts";
 import Agents from "./components/Agents";
 
-// Must match the exact strings TabBar passes for these tabs.
-const ARTIFACTS_TAB = "Artifacts";
-const AGENTS_TAB = "Agents";
+const ARTIFACTS_TAB = "artifacts";
+const AGENTS_TAB = "agents";
 
 const styles = {
   // Full-height flex column. The PAGE never scrolls — only the middle does.
@@ -65,7 +64,7 @@ const styles = {
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("Chat");
+  const [activeTab, setActiveTab] = useState("chat");
 
   const endRef = useRef(null);
   useEffect(() => {

@@ -1,6 +1,12 @@
 import { theme } from "../theme";
 
-const TABS = ["Chat Bot", "Artifacts", "Agents", "Career", "News / Social"];
+const TABS = [
+  { id: "chat",     label: "Chat Bot"      },
+  { id: "artifacts",label: "Artifacts"     },
+  { id: "agents",   label: "Agents"        },
+  { id: "career",   label: "Career"        },
+  { id: "news",     label: "News / Social" },
+];
 
 const styles = {
   tabBar: {
@@ -31,6 +37,7 @@ const styles = {
   tabActive: {
     background: theme.accentDeep,
     color: theme.lineSoft,
+    boxShadow: "0 0 0 1.5px rgba(255,200,61,0.55), 0 2px 10px rgba(255,200,61,0.18)",
   },
 };
 
@@ -39,14 +46,14 @@ export default function TabBar({ activeTab, onTabChange }) {
     <div style={styles.tabBar}>
       {TABS.map((tab) => (
         <button
-          key={tab}
+          key={tab.id}
           style={{
             ...styles.tab,
-            ...(activeTab === tab ? styles.tabActive : {}),
+            ...(activeTab === tab.id ? styles.tabActive : {}),
           }}
-          onClick={() => onTabChange(tab)}
+          onClick={() => onTabChange(tab.id)}
         >
-          {tab}
+          {tab.label}
         </button>
       ))}
     </div>
