@@ -4,11 +4,13 @@ import uuid
 import json
 import asyncio
 import base64
+import httpx
 from contextlib import AsyncExitStack
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Literal
 from dotenv import load_dotenv
 from anthropic import AsyncAnthropic
 from mcp import ClientSession, StdioServerParameters
@@ -101,6 +103,7 @@ class ChatRequest(BaseModel):
     mode: str = "auto"
     session_id: str | None = None
     attachments: list[Attachment] | None = None
+    model: Literal["claude-haiku", "qwen-3.5"] = "claude-haiku"
 
 
 async def run_agent(messages: list, mode: str = "auto") -> dict:
@@ -285,6 +288,31 @@ async def run_agent(messages: list, mode: str = "auto") -> dict:
             tool_choice = {"type": "auto"}
 
 
+async def run_ollama(message: str) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                "http://localhost:11434/api/chat",
+                json={
+                    "model": "qwen3.5:4b",
+                    "messages": [{"role": "user", "content": message}],
+                    "think": False,
+                    "stream": False,
+                    "options": {"num_ctx": 4096},
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data.get("message", {}).get("content") or "Ollama returned an empty response."
+            return {"text": text, "chart_data": None}
+    except httpx.ConnectError:
+        return {"text": "Local model offline — start `ollama serve`.", "chart_data": None}
+    except httpx.TimeoutException:
+        return {"text": "Ollama request timed out — the model may still be loading, try again.", "chart_data": None}
+    except Exception as e:
+        return {"text": f"Ollama error ({type(e).__name__}): {e}", "chart_data": None}
+
+
 @app.get("/")
 async def index():
     return FileResponse("index.html")
@@ -326,10 +354,13 @@ async def chat(req: ChatRequest):
     if not content:
         content = [{"type": "text", "text": ""}]
 
-    history = session_store.get(session_id)
-    history.append({"role": "user", "content": content})
-    result = await run_agent(history, req.mode)
-    session_store.set(session_id, history)
+    if req.model == "qwen-3.5":
+        result = await run_ollama(req.message)
+    else:
+        history = session_store.get(session_id)
+        history.append({"role": "user", "content": content})
+        result = await run_agent(history, req.mode)
+        session_store.set(session_id, history)
 
     return {
         "answer": result["text"],

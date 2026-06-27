@@ -72,12 +72,13 @@ export default function App() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
-  const handleSend = async (text, attachments = []) => {
+  const handleSend = async (text, attachments = [], model = "claude-haiku") => {
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setLoading(true);
     try {
       const { answer, chartData } = await sendMessage(text, "auto", {
         attachments: attachments.length ? attachments : null,
+        model,
       });
       setMessages((prev) => [
         ...prev,

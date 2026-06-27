@@ -2,6 +2,11 @@ import { useState, useRef } from "react";
 import { theme } from "../theme";
 import { inputAreaContainer, inputAreaTextarea } from "../styles/inputArea";
 
+const MODELS = [
+  { id: "claude-haiku", label: "Claude Haiku" },
+  { id: "qwen-3.5",     label: "Qwen 3.5 (offline)" },
+];
+
 const styles = {
   container: { ...inputAreaContainer },
   textarea: { ...inputAreaTextarea },
@@ -55,6 +60,18 @@ const styles = {
     fontSize: "14px",
     lineHeight: 1,
   },
+  modelSelect: {
+    padding: "6px 12px",
+    borderRadius: "8px",
+    border: `1.5px solid ${theme.line}`,
+    background: theme.bgSoft,
+    color: theme.text,
+    fontFamily: theme.sora,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    outline: "none",
+  },
 };
 
 function readFileAsBase64(file) {
@@ -73,12 +90,13 @@ function readFileAsBase64(file) {
 export default function ChatBox({ onSend, onNewChat, loading }) {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [selectedModel, setSelectedModel] = useState("claude-haiku");
   const fileInputRef = useRef(null);
 
   const handleSend = () => {
     const text = input.trim();
     if ((!text && attachments.length === 0) || loading) return;
-    onSend(text, attachments);
+    onSend(text, attachments, selectedModel);
     setInput("");
     setAttachments([]);
   };
@@ -156,7 +174,7 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
           marginTop: "8px",
         }}
       >
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <button
             style={styles.secondaryBtn}
             onClick={onNewChat}
@@ -173,18 +191,30 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
           </button>
         </div>
 
-        <button
-          style={{
-            ...styles.askBtn,
-            alignSelf: "auto",
-            marginTop: 0,
-            ...(loading ? styles.askBtnDisabled : {}),
-          }}
-          onClick={handleSend}
-          disabled={loading}
-        >
-          {loading ? "Thinking..." : "Ask →"}
-        </button>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <select
+            aria-label="Model"
+            style={styles.modelSelect}
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+          >
+            {MODELS.map((m) => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+          <button
+            style={{
+              ...styles.askBtn,
+              alignSelf: "auto",
+              marginTop: 0,
+              ...(loading ? styles.askBtnDisabled : {}),
+            }}
+            onClick={handleSend}
+            disabled={loading}
+          >
+            {loading ? "Thinking..." : "Ask →"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -7,11 +7,11 @@ let sessionId = null;
 export async function sendMessage(
   message,
   mode = "auto",
-  { sessionId: sessionIdIn = null, attachments = null } = {}
+  { sessionId: sessionIdIn = null, attachments = null, model = "claude-haiku" } = {}
 ) {
   const sid = sessionIdIn ?? sessionId;
 
-  const body = { message, mode, session_id: sid };
+  const body = { message, mode, session_id: sid, model };
   if (attachments?.length) body.attachments = attachments;
 
   const res = await fetch("/chat", {
