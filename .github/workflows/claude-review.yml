@@ -1,6 +1,6 @@
 name: Claude Code Review
 
-# Trigger: runs on every PR open or new commit push
+# Trigger: runs on every PR open or new commit push (test)
 on:
   pull_request:
     types: [opened, synchronize]
