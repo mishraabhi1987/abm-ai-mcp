@@ -39,6 +39,10 @@ const styles = {
     color: theme.textDim,
     cursor: "pointer",
   },
+  secondaryBtnDisabled: {
+    opacity: 0.35,
+    cursor: "not-allowed",
+  },
   chip: {
     display: "inline-flex",
     alignItems: "center",
@@ -183,9 +187,13 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
             + New Chat
           </button>
           <button
-            style={styles.secondaryBtn}
+            style={{
+              ...styles.secondaryBtn,
+              ...(selectedModel === "qwen-3.5" ? styles.secondaryBtnDisabled : {}),
+            }}
             onClick={() => fileInputRef.current?.click()}
-            title="Attach PDF, image, or text file"
+            disabled={selectedModel === "qwen-3.5"}
+            title={selectedModel === "qwen-3.5" ? "Attachments not supported for offline models" : "Attach PDF, image, or text file"}
           >
             ⊕ Attach
           </button>
@@ -196,7 +204,10 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
             aria-label="Model"
             style={styles.modelSelect}
             value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
+            onChange={(e) => {
+              setSelectedModel(e.target.value);
+              if (e.target.value === "qwen-3.5") setAttachments([]);
+            }}
           >
             {MODELS.map((m) => (
               <option key={m.id} value={m.id}>{m.label}</option>
