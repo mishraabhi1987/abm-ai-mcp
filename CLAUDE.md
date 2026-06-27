@@ -26,9 +26,10 @@ mcp dev server.py
 ANTHROPIC_API_KEY=...
 TAVILY_API_KEY=...
 LITELLM_API_KEY=...
+GOOGLE_API_KEY=...
 ```
 
-`LITELLM_API_KEY` is used to connect to the remote LiteLLM MCP gateway at `https://litellm.tfscreener.com/mcp/`.
+`LITELLM_API_KEY` is used to connect to the remote LiteLLM MCP gateway at `https://litellm.tfscreener.com/mcp/`. `GOOGLE_API_KEY` is used by `run_gemini` to call Google AI Studio (not Vertex AI).
 
 ## Architecture
 
@@ -42,8 +43,9 @@ The system has three Python server files and two legacy standalone clients:
 
 1. Validates attachment size (≤ 15 MB decoded; `ATTACH_LIMIT_BYTES` constant); raises 413 on violation.
 2. Builds a content-block list for the user turn: text block for the message, `document` blocks for PDFs, `image` blocks for images, inline `text` blocks (truncated at 4 000 chars) for `.txt`/`.md`. User content is always a block list, never a bare string.
-3. Branches on `req.model` (`Literal["claude-haiku", "qwen-3.5"]`, default `"claude-haiku"`):
+3. Branches on `req.model` (`Literal["claude-haiku", "qwen-3.5", "gemini"]`, default `"claude-haiku"`):
    - `"qwen-3.5"` → calls `run_ollama(req.message)` directly; **stateless** (no session history stored or read).
+   - `"gemini"` → calls `run_gemini(req.message)` directly; **stateless** (no session history stored or read).
    - anything else → retrieves session history from `SessionStore`, appends the user turn, calls `run_agent`, saves history back.
 4. Connects to the local stdio MCP server (mandatory) via `AsyncExitStack`.
 5. Attempts to connect to the remote LiteLLM MCP server with a 5 s `asyncio.wait_for` timeout; any failure logs a warning and continues with local tools only — the request never 500s when LiteLLM is down.
@@ -55,6 +57,8 @@ The system has three Python server files and two legacy standalone clients:
 11. Detects `CHART_DATA::` in the final text and splits it into `{"text": ..., "chart_data": {...}}` for the frontend to render.
 
 **`run_ollama(message)`** — async helper (httpx, non-blocking). Calls Ollama at `http://localhost:11434/api/chat` with `model=qwen3.5:4b`, `think=false`, `stream=false`, `num_ctx=4096`. Returns `{"text": ..., "chart_data": None}` — same internal shape as `run_agent`. Three distinct error paths: `ConnectError` → clean "start ollama serve" message; `TimeoutException` → loading hint; any other exception → shows `type(e).__name__` and message. Never raises — always returns a renderable dict.
+
+**`run_gemini(message)`** — async helper (httpx, non-blocking). Calls Google AI Studio REST API (`gemini-3.1-flash-lite` model) using `GOOGLE_API_KEY`. Returns `{"text": ..., "chart_data": None}`. Three distinct error paths: `HTTPStatusError` → status code + response body; `TimeoutException` → retry hint; any other exception → shows `type(e).__name__` and message. Returns `"Gemini unavailable — set GOOGLE_API_KEY in .env."` if the key is missing. Never raises.
 
 Conversation history is stored in `SessionStore` (module-level `session_store`). `/new` calls `session_store.reset(session_id)`.
 
@@ -74,13 +78,15 @@ Conversation history is stored in `SessionStore` (module-level `session_store`).
 
 ## Model selection (Chat Bot tab)
 
-The `ChatRequest.model` field is `Literal["claude-haiku", "qwen-3.5"]` (default `"claude-haiku"`). Pydantic returns 422 for any other value — do not change to `str`.
+The `ChatRequest.model` field is `Literal["claude-haiku", "qwen-3.5", "gemini"]` (default `"claude-haiku"`). Pydantic returns 422 for any other value — do not change to `str`.
 
 Frontend flow: `ChatBox.selectedModel` state → `onSend(text, attachments, model)` → `App.handleSend` → `sendMessage(..., { model })` → POST `/chat` body field `model`.
 
 The `MODELS` array in `ChatBox.jsx` is the single source of truth for valid frontend model options. To add a new model: (1) add it to `MODELS`, (2) add its id to the `Literal` in `ChatRequest`, (3) add a branch in `/chat`.
 
-The Ollama path is **intentionally stateless** — no session history is stored or retrieved. Do NOT add memory to `run_ollama`. `think: False` is set on the Ollama request to suppress chain-of-thought output.
+The `⊕ Attach` button is disabled for `"qwen-3.5"` and `"gemini"` — both are stateless and receive only the raw message string (no attachment blocks). Switching to either model clears any pending attachments.
+
+The Ollama and Gemini paths are **intentionally stateless** — no session history is stored or retrieved. Do NOT add memory to `run_ollama` or `run_gemini`. `think: False` is set on the Ollama request to suppress chain-of-thought output.
 
 ## Skills (`.claude/skills/`)
 
@@ -91,14 +97,15 @@ The Ollama path is **intentionally stateless** — no session history is stored 
 | `ollama-run` | `/ollama-run` | Start Ollama if not running, verify API at port 11434, check `qwen3.5:4b` is available |
 | `mcp-dev` | `/mcp-dev` | Run `mcp dev server.py` for MCP Inspector testing |
 
-## CI — Claude Code Review
+## CI — AI Code Review
 
 `.github/workflows/claude-review.yml` runs on every non-draft PR (open / push). It:
 1. Diffs the branch against base with `git diff origin/$base...HEAD`
-2. Pipes the diff to `claude -p` (Claude Code CLI, `--allowedTools "Read,Grep,Glob"`, `--max-turns 5`, `--output-format json`)
-3. Uploads `result.json` as a downloadable artifact
+2. Pipes the diff to `gemini -p` (`@google/gemini-cli`, `--output-format json`, `--skip-trust`)
+3. Parses `.response` for the review text; sums `.stats.models[].api.totalErrors` and fails if any errors
+4. Uploads `result.json` as a downloadable artifact
 
-Requires `ANTHROPIC_API_KEY` in GitHub repo secrets (Settings → Secrets and variables → Actions). The review appears in the job logs under `===== CLAUDE REVIEW =====` and cost is printed below it.
+Requires `GEMINI_API_KEY` in GitHub repo secrets. The env var `GEMINI_CLI_TRUST_WORKSPACE=true` is set on the CI runner — without it the Gemini CLI treats the fresh checkout as untrusted and exits with code 55. The review appears in the job logs under `===== GEMINI REVIEW =====`.
 
 ## Conventions & rules (always follow)
 
@@ -117,9 +124,9 @@ Requires `ANTHROPIC_API_KEY` in GitHub repo secrets (Settings → Secrets and va
 - `get_stock_price` and `get_weather` are intentionally commented out.
   Do NOT re-enable without an explicit reason.
 - `client.py` and `agents/finance_agent.py` are local-CLI only. Do NOT touch them for web-app changes. Web-facing Finance agent logic lives in `agent_server.py`.
-- Do NOT add session memory to `run_ollama`. The Qwen path is stateless by design.
+- Do NOT add session memory to `run_ollama` or `run_gemini`. Both stateless paths are stateless by design.
 - Do NOT change `ChatRequest.model` from `Literal` back to `str` — the type constraint is intentional.
-- `httpx` is used (not `requests`) for the Ollama call — keep it async.
+- `httpx` is used (not `requests`) for both `run_ollama` and `run_gemini` — keep them async.
 - Before any commit: show a summary of what changed and why, and WAIT for
   explicit approval. Never commit and push in the same step. Push only after
   the commit is approved.
