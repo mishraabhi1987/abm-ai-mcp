@@ -62,7 +62,7 @@ The system has three Python server files and two legacy standalone clients:
 
 Conversation history is stored in `SessionStore` (module-level `session_store`). `/new` calls `session_store.reset(session_id)`.
 
-**`/api/lyrics`** — Separate endpoint that connects only to the local MCP server, reads the `lyrics://standards` resource and `lyrics_brief` prompt, then calls Claude directly (no tool loop).
+**`/api/lyrics`** — Separate endpoint that connects only to the local MCP server, reads the `lyrics://standards` resource and `lyrics_brief` prompt, then calls Claude directly (no tool loop). **No longer used by the Artifacts tab** — the Artifacts tab routes lyrics through `/chat` via `sendMessage` so the selected model is respected. The endpoint still exists and is callable directly.
 
 **`client.py`** — Standalone CLI agentic loop for local testing only; not used by the web app.
 
@@ -76,15 +76,21 @@ Conversation history is stored in `SessionStore` (module-level `session_store`).
 
 `run_agent` builds a single `tool_routing: dict[str, ClientSession]` at startup — LiteLLM tools are inserted first, then local tools overwrite any collision (`LOCAL_PRIORITY = True` constant). Every `call_tool` goes through this map; a tool name not in the map returns `None` (empty result). The tool list sent to Claude is deduplicated by the same priority: iterate `local_tools + litellm_tools`, skip any name already seen. To change collision behaviour, flip `LOCAL_PRIORITY`.
 
-## Model selection (Chat Bot tab)
+## Model selection
 
 The `ChatRequest.model` field is `Literal["claude-haiku", "qwen-3.5", "gemini"]` (default `"claude-haiku"`). Pydantic returns 422 for any other value — do not change to `str`.
 
-Frontend flow: `ChatBox.selectedModel` state → `onSend(text, attachments, model)` → `App.handleSend` → `sendMessage(..., { model })` → POST `/chat` body field `model`.
+**`frontend/src/models.js`** is the single source of truth for valid frontend model options:
+```js
+{ id: "claude-haiku", label: "Claude Haiku" }
+{ id: "qwen-3.5",     label: "Qwen 3.5 (Local)", isLocal: true }
+{ id: "gemini",       label: "Gemini 3.1 Flash Lite" }
+```
+`isLocal: true` marks models that run locally (no attachments, no session history). To add a new model: (1) add it to `models.js`, (2) add its id to the `Literal` in `ChatRequest`, (3) add a branch in `/chat`. Mark it `isLocal: true` only if it's a locally-running model.
 
-The `MODELS` array in `ChatBox.jsx` is the single source of truth for valid frontend model options. To add a new model: (1) add it to `MODELS`, (2) add its id to the `Literal` in `ChatRequest`, (3) add a branch in `/chat`.
+**Chat Bot tab** — `ChatBox.selectedModel` state (default `"gemini"`) → `onSend(text, attachments, model)` → `App.handleSend` → `sendMessage(..., { model })` → POST `/chat`. The `⊕ Attach` button is disabled only for models with `isLocal: true` (currently only `qwen-3.5`). Switching to a local model clears pending attachments. `sendMessage` has no `model` default — callers must always pass it explicitly.
 
-The `⊕ Attach` button is disabled for `"qwen-3.5"` and `"gemini"` — both are stateless and receive only the raw message string (no attachment blocks). Switching to either model clears any pending attachments.
+**Artifacts tab** — has its own `selectedModel` state (default `"gemini"`) independent of Chat Bot. Both Code and Lyrics generation pass `model: selectedModel` to `sendMessage`. Changing the model resets `artifactsSessionId` so Code mode starts a clean session. Lyrics uses `LYRICS_INSTRUCTION` prepended to the prompt — no MCP resource/prompt context (unlike the `/api/lyrics` endpoint). The Artifacts tab maintains two isolated sessions — `artifactsSessionId` (Code) and `lyricsSessionId` (Lyrics) — so neither contaminates the Chat Bot's module-level `sessionId`.
 
 The Ollama and Gemini paths are **intentionally stateless** — no session history is stored or retrieved. Do NOT add memory to `run_ollama` or `run_gemini`. `think: False` is set on the Ollama request to suppress chain-of-thought output.
 
@@ -127,6 +133,8 @@ Requires `GEMINI_API_KEY` in GitHub repo secrets. The env var `GEMINI_CLI_TRUST_
 - Do NOT add session memory to `run_ollama` or `run_gemini`. Both stateless paths are stateless by design.
 - Do NOT change `ChatRequest.model` from `Literal` back to `str` — the type constraint is intentional.
 - `httpx` is used (not `requests`) for both `run_ollama` and `run_gemini` — keep them async.
+- `sendMessage` in `chat.js` has no `model` default — every caller must pass `model` explicitly. Do not add a default back; a missing model silently falls back to the backend Pydantic default.
+- The `MODELS` array in `frontend/src/models.js` is the single source of truth. Do NOT redefine it in individual components — always import from `../models`.
 - Before any commit: show a summary of what changed and why, and WAIT for
   explicit approval. Never commit and push in the same step. Push only after
   the commit is approved.
