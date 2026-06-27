@@ -46,10 +46,16 @@ const styles = {
     minHeight: 0,
     overflowY: "auto", // <-- the ONLY scrolling region
     padding: "0 20px",
+    display: "flex",
+    flexDirection: "column",
   },
   feed: {
     maxWidth: 700,
-    margin: "0 auto",
+    width: "100%",
+    marginTop: "auto",
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginBottom: 0,
     paddingTop: 20,
     paddingBottom: 20,
   },
@@ -82,12 +88,12 @@ export default function App() {
       });
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: answer, chartData },
+        { role: "assistant", content: answer, chartData, model },
       ]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `Error: ${err.message}` },
+        { role: "assistant", content: `Error: ${err.message}`, model },
       ]);
     } finally {
       setLoading(false);
@@ -124,7 +130,7 @@ export default function App() {
             <div style={styles.feed}>
               {messages.map((msg, i) => (
                 <div key={i}>
-                  <Bubble role={msg.role} content={msg.content} />
+                  <Bubble role={msg.role} content={msg.content} model={msg.model} />
                   {msg.chartData && <ChartWidget chartData={msg.chartData} />}
                 </div>
               ))}

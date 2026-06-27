@@ -1,6 +1,11 @@
-// Ek single chat message — user ya assistant
 import { marked } from "marked";
 import { theme } from "../theme";
+
+const MODEL_LABELS = {
+  "claude-haiku": "Claude Haiku",
+  "qwen-3.5": "Qwen 3.5 (Local)",
+  "gemini": "Gemini 3.1 Flash Lite",
+};
 
 const styles = {
   row: {
@@ -22,8 +27,27 @@ const styles = {
     wordWrap: "break-word",
     boxSizing: "border-box",
   },
+  userCol: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    maxWidth: "78%",
+  },
+  botCol: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  senderLabel: {
+    fontFamily: theme.sora,
+    fontSize: "11px",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    marginBottom: "4px",
+  },
   userBubble: {
-    maxWidth: "78%", // user message compact rahe, daayein
     background: "#3a2416",
     color: "#f0b541",
     border: "1px solid #5a3a1f",
@@ -97,30 +121,36 @@ export const mdStyles = `
   }
 `;
 
-export default function Bubble({ role, content }) {
+export default function Bubble({ role, content, model }) {
   const isUser = role === "user";
+  const modelLabel = model ? (MODEL_LABELS[model] ?? "AI") : "AI";
+  const senderLabel = isUser ? "You" : modelLabel;
+  const labelColor = isUser ? theme.textFaint : theme.accent;
 
   return (
-    <div
-      style={{ ...styles.row, ...(isUser ? styles.userRow : styles.botRow) }}
-    >
-      <div
-        style={{
-          ...styles.bubble,
-          ...(isUser ? styles.userBubble : styles.botBubble),
-        }}
-      >
-        {isUser ? (
-          content
-        ) : (
-          <>
-            <style>{mdStyles}</style>
-            <div
-              className="md-content"
-              dangerouslySetInnerHTML={{ __html: marked.parse(content || "") }}
-            />
-          </>
-        )}
+    <div style={{ ...styles.row, ...(isUser ? styles.userRow : styles.botRow) }}>
+      <div style={isUser ? styles.userCol : styles.botCol}>
+        <div style={{ ...styles.senderLabel, color: labelColor }}>
+          {senderLabel}
+        </div>
+        <div
+          style={{
+            ...styles.bubble,
+            ...(isUser ? styles.userBubble : styles.botBubble),
+          }}
+        >
+          {isUser ? (
+            content
+          ) : (
+            <>
+              <style>{mdStyles}</style>
+              <div
+                className="md-content"
+                dangerouslySetInnerHTML={{ __html: marked.parse(content || "") }}
+              />
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

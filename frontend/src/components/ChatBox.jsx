@@ -4,7 +4,8 @@ import { inputAreaContainer, inputAreaTextarea } from "../styles/inputArea";
 
 const MODELS = [
   { id: "claude-haiku", label: "Claude Haiku" },
-  { id: "qwen-3.5",     label: "Qwen 3.5 (offline)" },
+  { id: "qwen-3.5",     label: "Qwen 3.5 (Local)" },
+  { id: "gemini",       label: "Gemini 3.1 Flash Lite" },
 ];
 
 const styles = {
@@ -189,11 +190,11 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
           <button
             style={{
               ...styles.secondaryBtn,
-              ...(selectedModel === "qwen-3.5" ? styles.secondaryBtnDisabled : {}),
+              ...(selectedModel === "qwen-3.5" || selectedModel === "gemini" ? styles.secondaryBtnDisabled : {}),
             }}
             onClick={() => fileInputRef.current?.click()}
-            disabled={selectedModel === "qwen-3.5"}
-            title={selectedModel === "qwen-3.5" ? "Attachments not supported for offline models" : "Attach PDF, image, or text file"}
+            disabled={selectedModel === "qwen-3.5" || selectedModel === "gemini"}
+            title={selectedModel === "qwen-3.5" || selectedModel === "gemini" ? "Attachments not supported for this model" : "Attach PDF, image, or text file"}
           >
             ⊕ Attach
           </button>
@@ -206,7 +207,7 @@ export default function ChatBox({ onSend, onNewChat, loading }) {
             value={selectedModel}
             onChange={(e) => {
               setSelectedModel(e.target.value);
-              if (e.target.value === "qwen-3.5") setAttachments([]);
+              if (e.target.value === "qwen-3.5" || e.target.value === "gemini") setAttachments([]);
             }}
           >
             {MODELS.map((m) => (

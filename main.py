@@ -103,7 +103,7 @@ class ChatRequest(BaseModel):
     mode: str = "auto"
     session_id: str | None = None
     attachments: list[Attachment] | None = None
-    model: Literal["claude-haiku", "qwen-3.5"] = "claude-haiku"
+    model: Literal["claude-haiku", "qwen-3.5", "gemini"] = "claude-haiku"
 
 
 async def run_agent(messages: list, mode: str = "auto") -> dict:
@@ -288,6 +288,38 @@ async def run_agent(messages: list, mode: str = "auto") -> dict:
             tool_choice = {"type": "auto"}
 
 
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent"
+
+
+async def run_gemini(message: str) -> dict:
+    if not GOOGLE_API_KEY:
+        return {"text": "Gemini unavailable — set GOOGLE_API_KEY in .env.", "chart_data": None}
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                GEMINI_URL,
+                params={"key": GOOGLE_API_KEY},
+                json={"contents": [{"parts": [{"text": message}]}]},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = (
+                data.get("candidates", [{}])[0]
+                    .get("content", {})
+                    .get("parts", [{}])[0]
+                    .get("text")
+                or "Gemini returned an empty response."
+            )
+            return {"text": text, "chart_data": None}
+    except httpx.HTTPStatusError as e:
+        return {"text": f"Gemini API error ({e.response.status_code}): {e.response.text}", "chart_data": None}
+    except httpx.TimeoutException:
+        return {"text": "Gemini request timed out — try again.", "chart_data": None}
+    except Exception as e:
+        return {"text": f"Gemini error ({type(e).__name__}): {e}", "chart_data": None}
+
+
 async def run_ollama(message: str) -> dict:
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -356,6 +388,8 @@ async def chat(req: ChatRequest):
 
     if req.model == "qwen-3.5":
         result = await run_ollama(req.message)
+    elif req.model == "gemini":
+        result = await run_gemini(req.message)
     else:
         history = session_store.get(session_id)
         history.append({"role": "user", "content": content})
