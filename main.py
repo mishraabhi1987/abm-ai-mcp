@@ -188,7 +188,7 @@ async def run_agent(messages: list, mode: str = "auto") -> dict:
         while True:
             response = await anthropic.messages.create(
                 model="claude-haiku-4-5",
-                max_tokens=8000,
+                max_tokens=5000,
                 system=SYSTEM_PROMPT,
                 messages=messages,
                 tools=active_tools,
@@ -448,7 +448,7 @@ async def run_lyrics(mood: str, theme: str = "", anchor: str = "") -> str:
             # 3. Standards as system, brief as the user turn -> Claude writes the lyrics.
             response = await anthropic.messages.create(
                 model="claude-haiku-4-5",
-                max_tokens=8000,
+                max_tokens=5000,
                 system=standards,
                 messages=[{"role": "user", "content": brief}],
             )
