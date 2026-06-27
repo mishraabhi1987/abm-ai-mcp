@@ -1,0 +1,92 @@
+name: Claude Code Review
+
+# Trigger: runs on every PR open or new commit push
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+# Default: read-only. Grant only the permissions actually needed.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # Skip draft PRs to save cost
+    if: github.event.pull_request.draft == false
+
+    steps:
+      # 1. Fetch the repo onto the runner (full history needed for diff)
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Install Node (required for the Claude Code npm package)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 3. Install Claude Code CLI
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      # 4. Run the review
+      - name: Claude Review
+        env:
+          # API key from GitHub Secrets — never hardcode in the file.
+          # Claude Code authenticates with this key and bills pay-as-you-go
+          # (trackable in the Anthropic Console).
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Generate diff against the base branch
+          git diff origin/${{ github.base_ref }}...HEAD > pr.diff
+
+          # Skip if diff is empty
+          if [ ! -s pr.diff ]; then
+            echo "No changes to review."
+            exit 0
+          fi
+
+          # Pipe the diff to Claude for review
+          # Guardrails: read-only tools + turn cap
+          cat pr.diff | claude -p \
+            "Review this PR diff for the ABM AI project (React 19 + Vite frontend,
+             FastAPI + Anthropic SDK backend). Focus on: correctness bugs,
+             security issues, response-shape mismatches between frontend and
+             backend, and event-loop blocking in async code. Be concise and
+             list issues by severity (Critical / Medium / Minor). If no real
+             issues, say so." \
+            --allowedTools "Read,Grep,Glob" \
+            --max-turns 5 \
+            --output-format json > result.json
+
+          # Check exit code — did the Claude command fail?
+          if [ $? -ne 0 ]; then
+            echo "Claude review command failed."
+            exit 1
+          fi
+
+          # Check is_error in JSON output — validate the success path
+          IS_ERROR=$(jq -r '.is_error' result.json)
+          if [ "$IS_ERROR" = "true" ]; then
+            echo "Claude returned an error:"
+            jq -r '.result' result.json
+            exit 1
+          fi
+
+          # Print the review and cost to the job logs
+          echo "===== CLAUDE REVIEW ====="
+          jq -r '.result' result.json
+          echo "========================="
+          echo "Cost (USD): $(jq -r '.total_cost_usd' result.json)"
+
+      # 5. Save the review as a downloadable artifact
+      - name: Upload review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-review
+          path: result.json
