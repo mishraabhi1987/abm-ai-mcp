@@ -1,4 +1,4 @@
-name: Claude Code Review
+name: Code Review
 
 # Trigger: runs on every PR open or new commit push
 on:
@@ -23,23 +23,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Install Node (required for the Claude Code npm package)
+      # 2. Install Node (required for the review CLI npm package)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # 3. Install Claude Code CLI
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
+      # 3. Install the review CLI
+      # --- Claude Code CLI (commented out — switched to Gemini for A/B testing) ---
+      # - name: Install Claude Code
+      #   run: npm install -g @anthropic-ai/claude-code
+
+      # --- Gemini CLI (active) ---
+      - name: Install Gemini CLI
+        run: npm install -g @google/gemini-cli
 
       # 4. Run the review
-      - name: Claude Review
+      - name: AI Review
         env:
           # API key from GitHub Secrets — never hardcode in the file.
-          # Claude Code authenticates with this key and bills pay-as-you-go
-          # (trackable in the Anthropic Console).
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # --- Claude key (commented out) ---
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # --- Gemini key (active). Create this secret in repo Settings. ---
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           # Generate diff against the base branch
           git diff origin/${{ github.base_ref }}...HEAD > pr.diff
@@ -50,43 +56,58 @@ jobs:
             exit 0
           fi
 
-          # Pipe the diff to Claude for review
-          # Guardrails: read-only tools + turn cap
-          cat pr.diff | claude -p \
+          # Pipe the diff to the model for review.
+          # NOTE: flags differ from Claude Code:
+          #   - Gemini headless entry point is -p (same)
+          #   - no --max-turns / --allowedTools equivalents; default mode is
+          #     read-only safe (no --yolo, so no tool side-effects)
+          #   - JSON output uses --output-format json (same flag, different schema)
+          cat pr.diff | gemini -p \
             "Review this PR diff for the ABM AI project (React 19 + Vite frontend,
              FastAPI + Anthropic SDK backend). Focus on: correctness bugs,
              security issues, response-shape mismatches between frontend and
              backend, and event-loop blocking in async code. Be concise and
              list issues by severity (Critical / Medium / Minor). If no real
              issues, say so." \
-            --allowedTools "Read,Grep,Glob" \
-            --max-turns 5 \
             --output-format json > result.json
 
-          # Check exit code — did the Claude command fail?
+          # Check exit code — did the gemini command itself fail?
           if [ $? -ne 0 ]; then
-            echo "Claude review command failed."
+            echo "Gemini review command failed."
             exit 1
           fi
 
-          # Check is_error in JSON output — validate the success path
-          IS_ERROR=$(jq -r '.is_error' result.json)
-          if [ "$IS_ERROR" = "true" ]; then
-            echo "Claude returned an error:"
-            jq -r '.result' result.json
+          # Gemini JSON schema differs from Claude:
+          #   Claude:  .result / .is_error / .total_cost_usd
+          #   Gemini:  .response  (the review text)
+          #            .stats.models[].api.totalErrors  (per-model error counts)
+          #            no single is_error / total_cost_usd field
+          REVIEW=$(jq -r '.response' result.json)
+          if [ -z "$REVIEW" ] || [ "$REVIEW" = "null" ]; then
+            echo "Gemini returned no review text. Raw output:"
+            cat result.json
             exit 1
           fi
 
-          # Print the review and cost to the job logs
-          echo "===== CLAUDE REVIEW ====="
-          jq -r '.result' result.json
+          # Sum API errors across all models used; fail if any provider errored.
+          API_ERRORS=$(jq -r '[.stats.models // {} | to_entries[] | .value.api.totalErrors] | add // 0' result.json)
+          if [ "$API_ERRORS" -gt 0 ]; then
+            echo "Gemini reported $API_ERRORS API error(s):"
+            cat result.json
+            exit 1
+          fi
+
+          # Print the review and token usage to the job logs
+          echo "===== GEMINI REVIEW ====="
+          echo "$REVIEW"
           echo "========================="
-          echo "Cost (USD): $(jq -r '.total_cost_usd' result.json)"
+          TOTAL_TOKENS=$(jq -r '[.stats.models // {} | to_entries[] | .value.tokens.total] | add // 0' result.json)
+          echo "Total tokens used: $TOTAL_TOKENS"
 
       # 5. Save the review as a downloadable artifact
       - name: Upload review
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: claude-review
+          name: code-review
           path: result.json
