@@ -74,7 +74,8 @@ jobs:
              backend, and event-loop blocking in async code. Be concise and
              list issues by severity (Critical / Medium / Minor). If no real
              issues, say so." \
-            --output-format json > result.json
+            --output-format json \
+            --skip-trust > result.json
 
           # Check exit code — did the gemini command itself fail?
           if [ $? -ne 0 ]; then
