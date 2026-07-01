@@ -55,6 +55,8 @@ The system has three Python server files and one standalone CLI client:
 
 **`run_qwen_agent(message, registry)`** — Qwen/Ollama tool-calling loop (max `MAX_TURNS=6`). Prepends `QWEN_SYSTEM` as a `role: "system"` message instructing Qwen to use `.NS` suffix for Indian stocks and reproduce `CHART_DATA::` verbatim. Calls `registry.get_tools("openai")` for the OpenAI-style tool schema. Detects `tool_calls` in the Ollama response; handles `arguments` as dict or JSON string (logger.warning on JSONDecodeError, never silent crash). Re-injects results as `{"role": "tool", ...}` messages. Returns `_extract_chart(text)` — never hardcodes `chart_data: None`.
 
+> **Known limitation — Qwen chart rendering is best-effort, not guaranteed.** `qwen3.5:4b` is a 4B-parameter local model that is unreliable at multi-step tool calling and precise output format instructions. It will often retrieve price data correctly but skip the chart tool call entirely, or receive `CHART_DATA::` in a tool result and rephrase it as prose instead of reproducing it verbatim. This is an accepted limitation of the model size, not a bug to fix. Haiku and Gemini render charts reliably; Qwen may or may not. Do not add chart-forcing hacks to `run_qwen_agent` — the complexity is not worth the marginal gain on a local 4B model.
+
 All three runners return the fallback `"Reached reasoning limit — please rephrase or break the question into smaller parts."` if `MAX_TURNS` is exhausted without a final answer.
 
 Conversation history is stored in `SessionStore` (module-level `session_store`). `/new` calls `session_store.reset(session_id)`.
