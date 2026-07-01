@@ -52,11 +52,11 @@ def _resolve(query: str):
     (e.g. "Tata Consultancy" → TATA.NS); prefer the known ticker (TCS.NS).
     """
     q = query.strip()
-    if re.search(r'\.(NS|BO|US)$', q, re.IGNORECASE):
+    if re.search(r"\.(NS|BO|US)$", q, re.IGNORECASE):
         symbol = q.upper()
-        company = re.sub(r'\.(NS|BO|US)$', '', symbol, flags=re.IGNORECASE)
+        company = re.sub(r"\.(NS|BO|US)$", "", symbol, flags=re.IGNORECASE)
     else:
-        symbol = q.split()[0].upper() + '.NS'
+        symbol = q.split()[0].upper() + ".NS"
         company = q
     return symbol, company
 
@@ -69,7 +69,7 @@ async def _analyse(price: dict, news: list, query: str) -> str:
         "Provide grounded analysis. Do not restate price figures or headlines — only interpret."
     )
     msg = await _anthropic.messages.create(
-        model="claude-sonnet-4-6",
+        model="claude-haiku-4-5",
         max_tokens=1024,
         system=ANALYSIS_SYSTEM,
         messages=[{"role": "user", "content": user_msg}],
@@ -92,25 +92,36 @@ async def finance_agent(req: FinanceRequest):
 
             # Fetch price via MCP — result is a JSON string.
             try:
-                price_raw = await registry.execute("get_stock_price_data", {"symbol": symbol})
+                price_raw = await registry.execute(
+                    "get_stock_price_data", {"symbol": symbol}
+                )
                 price = json.loads(price_raw)
             except (RuntimeError, json.JSONDecodeError) as e:
                 logging.warning("get_stock_price_data failed for '%s': %s", symbol, e)
-                return {"price": {"error": str(e)}, "news": [], "analysis": "", "query": req.query}
+                return {
+                    "price": {"error": str(e)},
+                    "news": [],
+                    "analysis": "",
+                    "query": req.query,
+                }
 
             if "error" in price:
                 return {"price": price, "news": [], "analysis": "", "query": req.query}
 
             # Fetch news via MCP — result is a JSON array string.
             try:
-                news_raw = await registry.execute("get_stock_news_data", {"company": company, "max_results": 5})
+                news_raw = await registry.execute(
+                    "get_stock_news_data", {"company": company, "max_results": 5}
+                )
                 news = json.loads(news_raw)
             except (RuntimeError, json.JSONDecodeError) as e:
                 logging.warning("get_stock_news_data failed for '%s': %s", company, e)
                 news = []
 
     try:
-        analysis = await asyncio.wait_for(_analyse(price, news, req.query), timeout=30.0)
+        analysis = await asyncio.wait_for(
+            _analyse(price, news, req.query), timeout=30.0
+        )
     except asyncio.TimeoutError:
         logging.warning("Analysis call timed out for query: %s", req.query)
         analysis = ""
@@ -119,4 +130,5 @@ async def finance_agent(req: FinanceRequest):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)

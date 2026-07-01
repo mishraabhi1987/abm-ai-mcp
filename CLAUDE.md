@@ -37,7 +37,7 @@ The system has three Python server files and one standalone CLI client:
 
 **`server.py`** — Local MCP server (FastMCP). Runs as a subprocess via stdio. Provides tools: `calculate`, `fetch_url`, `web_search`, `get_stock_price`, `get_stock_news`, `get_weather`, `get_stock_price_data`, `get_stock_news_data`, `get_chart_data`, `get_historical_chart`. Also exposes MCP resources (`resource://abm/*`) and a prompt (`lyrics_brief`) used by the lyrics feature. `fetch_stock_price` and `fetch_stock_news` are plain Python functions (not MCP tools) used internally by the structured-data tools above.
 
-**`agent_server.py`** — Separate FastAPI app on port 8001. Exposes `POST /api/agent/finance`. Opens a per-request MCP session (stdio_client + ClientSession) and uses `ToolRegistry` to call `get_stock_price_data` and `get_stock_news_data`, then sends the result to Claude (`claude-sonnet-4-6`) for grounded analysis. No agentic loop — single Claude call per request. The Vite proxy routes `/api/agent` to this server.
+**`agent_server.py`** — Separate FastAPI app on port 8001. Exposes `POST /api/agent/finance`. Opens a per-request MCP session (stdio_client + ClientSession) and uses `ToolRegistry` to call `get_stock_price_data` and `get_stock_news_data`, then sends the result to Claude (`claude-haiku-4-5`) for grounded analysis. No agentic loop — single Claude call per request. The Vite proxy routes `/api/agent` to this server.
 
 **`main.py`** — FastAPI app and agentic loops. On each `/chat` POST it:
 
@@ -51,9 +51,9 @@ The system has three Python server files and one standalone CLI client:
 
 **`run_haiku(messages, registry, mode)`** — Claude Haiku agentic loop (max `MAX_TURNS=6`). Optionally connects to LiteLLM MCP (5 s timeout; failures are non-fatal). Builds a `tool_routing: dict[str, ToolRegistry]` with `LOCAL_PRIORITY = True` so local tools win on name collision. Deduplicates the merged tool list before sending to Claude. Routes each `tool_use` block through the appropriate `ToolRegistry.execute()`; injects results as Anthropic `tool_result` blocks. Detects `CHART_DATA::` via `_extract_chart` (brace-counting, never a plain split). Returns `{"text": ..., "chart_data": ...}`.
 
-**`run_gemini_agent(message, registry)`** — Gemini tool-calling loop (max `MAX_TURNS=6`). Calls `registry.get_tools("gemini")` for the `functionDeclarations` envelope. Detects `functionCall` parts in each response; re-injects results as `functionResponse` parts in a `"user"` turn. Returns `{"text": ..., "chart_data": None}`.
+**`run_gemini_agent(message, registry)`** — Gemini tool-calling loop (max `MAX_TURNS=6`). Calls `registry.get_tools("gemini")` for the `functionDeclarations` envelope. Detects `functionCall` parts in each response; re-injects results as `functionResponse` parts in a `"user"` turn. Returns `_extract_chart(text)` — never hardcodes `chart_data: None`.
 
-**`run_qwen_agent(message, registry)`** — Qwen/Ollama tool-calling loop (max `MAX_TURNS=6`). Calls `registry.get_tools("openai")` for the OpenAI-style tool schema. Detects `tool_calls` in the Ollama response; handles `arguments` as dict or JSON string (logger.warning on JSONDecodeError, never silent crash). Re-injects results as `{"role": "tool", ...}` messages. Returns `{"text": ..., "chart_data": None}`.
+**`run_qwen_agent(message, registry)`** — Qwen/Ollama tool-calling loop (max `MAX_TURNS=6`). Prepends `QWEN_SYSTEM` as a `role: "system"` message instructing Qwen to use `.NS` suffix for Indian stocks and reproduce `CHART_DATA::` verbatim. Calls `registry.get_tools("openai")` for the OpenAI-style tool schema. Detects `tool_calls` in the Ollama response; handles `arguments` as dict or JSON string (logger.warning on JSONDecodeError, never silent crash). Re-injects results as `{"role": "tool", ...}` messages. Returns `_extract_chart(text)` — never hardcodes `chart_data: None`.
 
 All three runners return the fallback `"Reached reasoning limit — please rephrase or break the question into smaller parts."` if `MAX_TURNS` is exhausted without a final answer.
 
@@ -72,7 +72,7 @@ Conversation history is stored in `SessionStore` (module-level `session_store`).
 
 ## Chart data flow
 
-`get_chart_data` and `get_historical_chart` tools return a string prefixed with `Render this chart in the UI: CHART_DATA::` followed by a JSON object. The system prompt instructs Claude to copy this verbatim. `_extract_chart` in `main.py` extracts the JSON with brace-counting (not a simple split) to handle edge cases, and returns it as `chart_data` in the API response.
+`get_chart_data` and `get_historical_chart` tools return a string prefixed with `Render this chart in the UI: CHART_DATA::` followed by a JSON object. All three runners (`run_haiku`, `run_gemini_agent`, `run_qwen_agent`) call `_extract_chart(text)` on their final text response — never hardcode `chart_data: None`. `_extract_chart` in `main.py` splits on the marker and extracts the JSON with brace-counting (not a simple split) to handle edge cases, returning `{"text": ..., "chart_data": ...}`.
 
 ## Tool routing
 

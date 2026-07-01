@@ -274,10 +274,7 @@ async def run_gemini_agent(message: str, registry: ToolRegistry) -> dict:
                 function_calls = [p for p in parts if "functionCall" in p]
                 if not function_calls:
                     text = next((p.get("text") for p in parts if "text" in p), None)
-                    return {
-                        "text": text or "Gemini returned an empty response.",
-                        "chart_data": None,
-                    }
+                    return _extract_chart(text or "Gemini returned an empty response.")
                 tool_results = []
                 for fc_part in function_calls:
                     fc = fc_part["functionCall"]
@@ -311,10 +308,21 @@ async def run_gemini_agent(message: str, registry: ToolRegistry) -> dict:
     }
 
 
+QWEN_SYSTEM = (
+    "For Indian (NSE) stocks always use the .NS suffix: CDSL.NS, TCS.NS, RELIANCE.NS, INFY.NS, etc. "
+    "When any tool returns a result containing 'CHART_DATA::', copy that entire string "
+    "verbatim into your response — do not rephrase or replace it with your own data. "
+    "If a chart tool call fails, report the error; never fabricate chart values."
+)
+
+
 async def run_qwen_agent(message: str, registry: ToolRegistry) -> dict:
     """Qwen/Ollama tool-calling loop using ToolRegistry for tool dispatch."""
     tools = await registry.get_tools("openai")
-    messages: list = [{"role": "user", "content": message}]
+    messages: list = [
+        {"role": "system", "content": QWEN_SYSTEM},
+        {"role": "user", "content": message},
+    ]
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:
             for _turn in range(MAX_TURNS):
@@ -343,11 +351,9 @@ async def run_qwen_agent(message: str, registry: ToolRegistry) -> dict:
                     assistant_msg["tool_calls"] = tool_calls
                 messages.append(assistant_msg)
                 if not tool_calls:
-                    return {
-                        "text": msg.get("content")
-                        or "Ollama returned an empty response.",
-                        "chart_data": None,
-                    }
+                    return _extract_chart(
+                        msg.get("content") or "Ollama returned an empty response."
+                    )
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
