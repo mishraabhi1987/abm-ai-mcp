@@ -209,6 +209,27 @@ def fetch_stock_news(company: str, max_results: int = 5) -> list:
     return items
 
 
+# Structured data tools — return JSON strings for orchestrator / registry use.
+# These are distinct from get_stock_price / get_stock_news which return
+# human-readable strings for the Chat Bot. Callers must json.loads the result.
+
+@mcp.tool()
+def get_stock_price_data(symbol: str) -> str:
+    """Return stock price as a JSON string for structured / orchestrator use.
+    Shape on success: {"symbol","current","prev_close","change","change_pct","currency"}.
+    Shape on failure: {"error": "<message>"}.
+    For human-readable price output in chat, use get_stock_price instead."""
+    return json.dumps(fetch_stock_price(symbol))
+
+
+@mcp.tool()
+def get_stock_news_data(company: str, max_results: int = 5) -> str:
+    """Return stock news as a JSON array string for structured / orchestrator use.
+    Each item: {"title","url","source","date","summary"}.
+    For human-readable news output in chat, use get_stock_news instead."""
+    return json.dumps(fetch_stock_news(company, max_results))
+
+
 # Stock price MCP tool
 @mcp.tool()
 def get_stock_price(symbol: str) -> str:

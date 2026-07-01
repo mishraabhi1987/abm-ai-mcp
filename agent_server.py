@@ -1,5 +1,7 @@
 # Run with: uvicorn agent_server:app --reload --port 8001
+import os
 import re
+import sys
 import json
 import logging
 import asyncio
@@ -7,12 +9,20 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from anthropic import AsyncAnthropic
-from server import fetch_stock_price, fetch_stock_news
+from anthropic import AsyncAnthropic  # raw anthropic package — not claude_agent_sdk
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from tool_registry import ToolRegistry
 
 load_dotenv()
 
 _anthropic = AsyncAnthropic(timeout=30.0)
+
+server_params = StdioServerParameters(
+    command=sys.executable,
+    args=["server.py"],
+    env=os.environ,
+)
 
 ANALYSIS_SYSTEM = (
     "You are a professional stock-market analyst. "
@@ -74,10 +84,31 @@ class FinanceRequest(BaseModel):
 @app.post("/api/agent/finance")
 async def finance_agent(req: FinanceRequest):
     symbol, company = _resolve(req.query)
-    price = fetch_stock_price(symbol)
-    if "error" in price:
-        return {"price": price, "news": [], "analysis": "", "query": req.query}
-    news = fetch_stock_news(company)
+
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            registry = ToolRegistry(session)
+
+            # Fetch price via MCP — result is a JSON string.
+            try:
+                price_raw = await registry.execute("get_stock_price_data", {"symbol": symbol})
+                price = json.loads(price_raw)
+            except (RuntimeError, json.JSONDecodeError) as e:
+                logging.warning("get_stock_price_data failed for '%s': %s", symbol, e)
+                return {"price": {"error": str(e)}, "news": [], "analysis": "", "query": req.query}
+
+            if "error" in price:
+                return {"price": price, "news": [], "analysis": "", "query": req.query}
+
+            # Fetch news via MCP — result is a JSON array string.
+            try:
+                news_raw = await registry.execute("get_stock_news_data", {"company": company, "max_results": 5})
+                news = json.loads(news_raw)
+            except (RuntimeError, json.JSONDecodeError) as e:
+                logging.warning("get_stock_news_data failed for '%s': %s", company, e)
+                news = []
+
     try:
         analysis = await asyncio.wait_for(_analyse(price, news, req.query), timeout=30.0)
     except asyncio.TimeoutError:
